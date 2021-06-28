@@ -138,7 +138,9 @@ func exportRepository(slug string, id int) error {
 	if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
 		innerErr := os.Mkdir(repositoryDir, 0777)
 		if innerErr != nil {
-			log.Fatalf("FATAL", "could not create a repository directory at %s", repositoryDir)
+			log.Fatalf("FATAL could not create a repository directory at %s", repositoryDir)
+		} else {
+			log.Println("INFO", "created repository directory", repositoryDir)
 		}
 	} else {
 		log.Println("INFO", "repository directory exists, skipping creation of", repositoryDir)
@@ -148,7 +150,9 @@ func exportRepository(slug string, id int) error {
 	if _, err := os.Stat(exportDir); os.IsNotExist(err) {
 		innerErr := os.Mkdir(exportDir, 0777)
 		if innerErr != nil {
-			log.Fatalf("FATAL", "could not create an exports directory at %s", exportDir)
+			log.Fatalf("FATAL could not create an exports directory at %s", exportDir)
+		} else {
+			log.Println("INFO", "created exports directory", exportDir)
 		}
 	} else {
 		log.Println("INFO", "exports directory exists, skipping creation of", exportDir)
@@ -158,7 +162,9 @@ func exportRepository(slug string, id int) error {
 	if _, err := os.Stat(failureDir); os.IsNotExist(err) {
 		innerErr := os.Mkdir(failureDir, 0777)
 		if innerErr != nil {
-			log.Fatalf("FATAL", "could not create a failure directory at %s", failureDir)
+			log.Fatalf("FATAL could not create a failure directory at %s", failureDir)
+		} else {
+			log.Println("INFO", "created repository directory", failureDir)
 		}
 	} else {
 		log.Println("INFO", "failures directory exists, skipping creation of", failureDir)
