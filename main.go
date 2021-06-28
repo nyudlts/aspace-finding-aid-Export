@@ -6,6 +6,7 @@ import (
 	"github.com/nyudlts/go-aspace"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 var (
@@ -16,6 +17,7 @@ var (
 	logfile     string
 	repository  int
 	timeout     int
+	workDir     string
 )
 
 func init() {
@@ -29,6 +31,7 @@ func init() {
 func main() {
 	//parse the flags
 	flag.Parse()
+	workDir = "aspace-export"
 
 	//create a log file
 	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE, 0666)
@@ -57,7 +60,7 @@ func main() {
 	}
 
 	//setup export directories
-	setupDirectories("exports", "failures")
+	setupDirectories()
 
 	//get a map of repositories to be exported
 	repositories := getRepositoryMap()
@@ -70,6 +73,10 @@ func main() {
 			log.Println("ERROR", err.Error())
 		}
 	}
+
+	//exit
+	fmt.Println("Process Complete, exiting.")
+	os.Exit(0)
 }
 
 func checkFlags() error {
@@ -85,23 +92,15 @@ func checkFlags() error {
 	return nil
 }
 
-func setupDirectories(exports string, failures string) {
-	if _, err = os.Stat(exports); os.IsNotExist(err) {
-		innerErr := os.Mkdir(exports, 0666)
-		if innerErr != nil {
-			log.Fatalf("could not create an exports directory at %s", exports)
-		}
-	} else {
-		log.Println("INFO", "exports directory exists, skipping creation")
-	}
+func setupDirectories() {
 
-	if _, err = os.Stat(failures); os.IsNotExist(err) {
-		innerErr := os.Mkdir(failures, 066)
+	if _, err = os.Stat(workDir); os.IsNotExist(err) {
+		innerErr := os.Mkdir(workDir, 0777)
 		if innerErr != nil {
-			log.Fatalln("ERROR", "could not create a failures directory at %s", failures)
+			log.Fatalf("could not create an work directory at %s", workDir)
 		}
 	} else {
-		log.Println("INFO", "failures directory exists, skipping creation")
+		log.Println("INFO", "work directory exists, skipping creation", workDir)
 	}
 }
 
@@ -131,5 +130,40 @@ func getRepositoryMap() map[string]int {
 }
 
 func exportRepository(slug string, id int) error {
+	repositoryDir := filepath.Join(workDir, slug)
+	exportDir := filepath.Join(repositoryDir, "exports")
+	failureDir := filepath.Join(repositoryDir, "failures")
+
+	//create the repository directory
+	if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
+		innerErr := os.Mkdir(repositoryDir, 0777)
+		if innerErr != nil {
+			log.Fatalf("FATAL", "could not create a repository directory at %s", repositoryDir)
+		}
+	} else {
+		log.Println("INFO", "repository directory exists, skipping creation of", repositoryDir)
+	}
+
+	//create the repository export directory
+	if _, err := os.Stat(exportDir); os.IsNotExist(err) {
+		innerErr := os.Mkdir(exportDir, 0777)
+		if innerErr != nil {
+			log.Fatalf("FATAL", "could not create an exports directory at %s", exportDir)
+		}
+	} else {
+		log.Println("INFO", "exports directory exists, skipping creation of", exportDir)
+	}
+
+	//create the repository failure directory
+	if _, err := os.Stat(failureDir); os.IsNotExist(err) {
+		innerErr := os.Mkdir(failureDir, 0777)
+		if innerErr != nil {
+			log.Fatalf("FATAL", "could not create a failure directory at %s", failureDir)
+		}
+	} else {
+		log.Println("INFO", "failures directory exists, skipping creation of", failureDir)
+	}
+
 	return nil
+
 }
