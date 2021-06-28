@@ -46,6 +46,7 @@ func main() {
 		fmt.Println(err.Error())
 		log.Fatalln("FATAL", err)
 	}
+
 	//get a go-aspace api client
 	log.Println("INFO", "Requesting API token")
 	client, err = aspace.NewClient(config, environment, timeout)
@@ -59,7 +60,7 @@ func main() {
 	setupDirectories("exports", "failures")
 
 	//get a map of repositories to be exported
-	repositories := getRepositoryMap(repository)
+	repositories := getRepositoryMap()
 
 	//export the repositories
 	for slug, id := range repositories {
@@ -74,29 +75,29 @@ func main() {
 func checkFlags() error {
 	//check if the config file exists
 	if _, err := os.Stat(config); os.IsNotExist(err) {
-		return fmt.Errorf("Go-aspace config file does not exist at %s", config)
+		return fmt.Errorf("go-aspace config file does not exist at %s", config)
 	}
 
 	//check if an environment is defined
 	if environment == "" {
-		return fmt.Errorf("No Environment key is defined, set --environment when envoking script.")
+		return fmt.Errorf("no Environment key is defined, set --environment when envoking script")
 	}
 	return nil
 }
 
 func setupDirectories(exports string, failures string) {
 	if _, err = os.Stat(exports); os.IsNotExist(err) {
-		inner_err := os.Mkdir(exports, 0666)
-		if inner_err != nil {
-			log.Fatalln("could not create an exports directory at %s", exports)
+		innerErr := os.Mkdir(exports, 0666)
+		if innerErr != nil {
+			log.Fatalf("could not create an exports directory at %s", exports)
 		}
 	} else {
 		log.Println("INFO", "exports directory exists, skipping creation")
 	}
 
 	if _, err = os.Stat(failures); os.IsNotExist(err) {
-		inner_err := os.Mkdir(failures, 066)
-		if inner_err != nil {
+		innerErr := os.Mkdir(failures, 066)
+		if innerErr != nil {
 			log.Fatalln("ERROR", "could not create a failures directory at %s", failures)
 		}
 	} else {
@@ -104,7 +105,7 @@ func setupDirectories(exports string, failures string) {
 	}
 }
 
-func getRepositoryMap(repId int) map[string]int {
+func getRepositoryMap() map[string]int {
 	repositories := make(map[string]int)
 
 	if repository != 0 {
