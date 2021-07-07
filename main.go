@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/dmnyu/aspace-fa-export/export"
 	"github.com/nyudlts/go-aspace"
 	"log"
 	"os"
-	"path/filepath"
 )
 
 var (
@@ -40,7 +40,7 @@ func main() {
 	}
 	defer f.Close()
 	log.SetOutput(f)
-	log.Println("INFO", "Running go-aspace-export")
+	log.Printf("INFO\tRunning go-aspace-export")
 	fmt.Printf("Running go-aspace finding aid exporter, logging to %s\n", logfile)
 
 	//check critical flags
@@ -51,12 +51,12 @@ func main() {
 	}
 
 	//get a go-aspace api client
-	log.Println("INFO", "Requesting API token")
+	log.Println("INFO\tRequesting API token")
 	client, err = aspace.NewClient(config, environment, timeout)
 	if err != nil {
-		log.Fatalln("FATAL", "Could not get create an aspace client", err.Error())
+		log.Fatalln("FATAL\tCould not get create an aspace client", err.Error())
 	} else {
-		log.Println("INFO", "go-aspace client created, using go-aspace", aspace.LibraryVersion)
+		log.Println("INFO\tgo-aspace client created, using go-aspace", aspace.LibraryVersion)
 	}
 
 	//setup export directories
@@ -68,14 +68,15 @@ func main() {
 	//export the repositories
 	for slug, id := range repositories {
 		fmt.Printf("Exporting repository: %s\n", slug)
-		err := exportRepository(slug, id)
+		err := export.ExportRepository(slug, id, workDir, client)
 		if err != nil {
-			log.Println("ERROR", err.Error())
+			log.Printf("ERROR\t%s", err.Error())
 		}
 	}
 
 	//exit
-	fmt.Println("Process Complete, exiting.")
+	log.Println("INFO\tprocess complete, exiting.")
+	fmt.Println("process complete, exiting.")
 	os.Exit(0)
 }
 
@@ -97,10 +98,10 @@ func setupDirectories() {
 	if _, err = os.Stat(workDir); os.IsNotExist(err) {
 		innerErr := os.Mkdir(workDir, 0777)
 		if innerErr != nil {
-			log.Fatalf("could not create an work directory at %s", workDir)
+			log.Fatalf("FATAL\tcould not create an work directory at %s", workDir)
 		}
 	} else {
-		log.Println("INFO", "work directory exists, skipping creation", workDir)
+		log.Println("INFO\twork directory exists, skipping creation", workDir)
 	}
 }
 
@@ -110,66 +111,21 @@ func getRepositoryMap() map[string]int {
 	if repository != 0 {
 		repositoryObject, err := client.GetRepository(repository)
 		if err != nil {
-			log.Fatalln("FATAL", err.Error())
+			log.Fatalf("FATAL\t%s", err.Error())
 		}
 		repositories[repositoryObject.Slug] = repository
 	} else {
 		repositoryIds, err := client.GetRepositories()
 		if err != nil {
-			log.Fatalln("FATAL", err.Error())
+			log.Fatalf("FATAL\t%s", err.Error())
 		}
 		for _, r := range repositoryIds {
 			repositoryObject, err := client.GetRepository(r)
 			if err != nil {
-				log.Fatalln("FATAL", err.Error())
+				log.Fatalf("FATAL\t%s", err.Error())
 			}
 			repositories[repositoryObject.Slug] = r
 		}
 	}
 	return repositories
-}
-
-func exportRepository(slug string, id int) error {
-	repositoryDir := filepath.Join(workDir, slug)
-	exportDir := filepath.Join(repositoryDir, "exports")
-	failureDir := filepath.Join(repositoryDir, "failures")
-
-	//create the repository directory
-	if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
-		innerErr := os.Mkdir(repositoryDir, 0777)
-		if innerErr != nil {
-			log.Fatalf("FATAL could not create a repository directory at %s", repositoryDir)
-		} else {
-			log.Println("INFO", "created repository directory", repositoryDir)
-		}
-	} else {
-		log.Println("INFO", "repository directory exists, skipping creation of", repositoryDir)
-	}
-
-	//create the repository export directory
-	if _, err := os.Stat(exportDir); os.IsNotExist(err) {
-		innerErr := os.Mkdir(exportDir, 0777)
-		if innerErr != nil {
-			log.Fatalf("FATAL could not create an exports directory at %s", exportDir)
-		} else {
-			log.Println("INFO", "created exports directory", exportDir)
-		}
-	} else {
-		log.Println("INFO", "exports directory exists, skipping creation of", exportDir)
-	}
-
-	//create the repository failure directory
-	if _, err := os.Stat(failureDir); os.IsNotExist(err) {
-		innerErr := os.Mkdir(failureDir, 0777)
-		if innerErr != nil {
-			log.Fatalf("FATAL could not create a failure directory at %s", failureDir)
-		} else {
-			log.Println("INFO", "created repository directory", failureDir)
-		}
-	} else {
-		log.Println("INFO", "failures directory exists, skipping creation of", failureDir)
-	}
-
-	return nil
-
 }
