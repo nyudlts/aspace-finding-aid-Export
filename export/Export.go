@@ -89,9 +89,9 @@ func processRepository() error {
 			uris = append(uris, chunk...)
 		}
 		if len(uris) == len(resourceIDs) {
-			log.Printf("INFO\t%d of %d resources exported", len(uris), len(resourceIDs))
+			log.Printf("INFO\t%d of %d resources processed", len(uris), len(resourceIDs))
 		} else {
-			log.Printf("ERROR\t%d of %d resources exported", len(uris), len(resourceIDs))
+			log.Printf("ERROR\t%d of %d resources processed", len(uris), len(resourceIDs))
 		}
 	}
 	return nil
@@ -114,13 +114,26 @@ func ExportFindingAidChunk(resourceIds []int, uriChannel chan []string, workerID
 					log.Printf("ERROR\trepository %s resource-id %d: %s, skipping", slug, resourceID, err.Error())
 				} else {
 					filename := resource.EADID + ".xml"
-					outputFile := filepath.Join(exportDir, filename)
-					f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
-					defer f.Close()
-					if err != nil {
-						log.Printf("ERROR\tcould not create %s", outputFile)
+					err := aspace.ValidateEAD(eadBytes); if err != nil {
+						log.Printf("INFO\tworker %d: repository %s resource-id %d did not validate, writing to failure dir", workerID, slug, resourceID)
+						outputFile := filepath.Join(failureDir, filename)
+						f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
+						defer f.Close()
+						if err != nil {
+							log.Printf("ERROR\tworker %d: could not create %s", workerID, outputFile)
+						} else {
+							f.Write(eadBytes)
+						}
 					} else {
-						f.Write(eadBytes)
+
+						outputFile := filepath.Join(exportDir, filename)
+						f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
+						defer f.Close()
+						if err != nil {
+							log.Printf("ERROR\tworker %d: could not create %s", workerID, outputFile)
+						} else {
+							f.Write(eadBytes)
+						}
 					}
 				}
 			} else {
