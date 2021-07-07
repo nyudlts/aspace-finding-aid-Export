@@ -102,26 +102,31 @@ func ExportFindingAidChunk(resourceIds []int, uriChannel chan []string, workerID
 
 	uris := []string{}
 	for _, resourceID := range resourceIds {
-		log.Printf("INFO\tworker %d requesting resource id %d from %s", workerID, resourceID, slug)
+		log.Printf("INFO\tworker %d: requesting resource id %d from %s", workerID, resourceID, slug)
 		resource, err := c.GetResource(repositoryID, resourceID)
 		if err != nil {
 			log.Printf("ERROR\trepository %s resource-id %d: %s, skipping", slug, resourceID, err.Error())
 		} else {
-			eadBytes, err := c.GetEADAsByteArray(repositoryID, resourceID)
-			if err != nil {
-				log.Printf("ERROR\trepository %s resource-id %d: %s, skipping", slug, resourceID, err.Error())
-			} else {
-				filename := resource.EADID + ".xml"
-				outputFile := filepath.Join(exportDir, filename)
-				f, err := os.OpenFile(outputFile, os.O_CREATE | os.O_RDWR, 0755)
-				defer f.Close()
+			if resource.Publish == true {
+				log.Printf("INFO\tworker %d: exporting repository %s resource-id %d", workerID, slug, resourceID)
+				eadBytes, err := c.GetEADAsByteArray(repositoryID, resourceID)
 				if err != nil {
-					log.Printf("ERROR\tcould not create %s", outputFile)
+					log.Printf("ERROR\trepository %s resource-id %d: %s, skipping", slug, resourceID, err.Error())
 				} else {
-					f.Write(eadBytes)
-					uris = append(uris, resource.URI)
+					filename := resource.EADID + ".xml"
+					outputFile := filepath.Join(exportDir, filename)
+					f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
+					defer f.Close()
+					if err != nil {
+						log.Printf("ERROR\tcould not create %s", outputFile)
+					} else {
+						f.Write(eadBytes)
+					}
 				}
+			} else {
+				log.Printf("INFO\tworker %d: repository %s resource-id %d is not set to publish, skipping ",workerID,slug,resourceID)
 			}
+			uris = append(uris, resource.URI)
 		}
 	}
 
