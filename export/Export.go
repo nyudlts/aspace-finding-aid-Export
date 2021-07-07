@@ -74,9 +74,9 @@ func processRepository() error {
 		return err
 	}
 	log.Printf("INFO\tfound %d resources in %s repository", len(resourceIDs), slug)
-	if len(resourceIDs) > 1 {
+	if len(resourceIDs) > 7 {
 		//split resource slice into chunks
-		repoChunks := chunk(resourceIDs, len(resourceIDs)/ 8)
+		repoChunks := chunk(resourceIDs, len(resourceIDs)/ 7)
 		log.Printf("INFO\tSplit repositry slice into %d sub-slices", len(repoChunks))
 		uriChannel := make(chan []string)
 		for i, chunk := range repoChunks {
@@ -102,11 +102,27 @@ func ExportFindingAidChunk(resourceIds []int, uriChannel chan []string, workerID
 
 	uris := []string{}
 	for _, resourceID := range resourceIds {
-		resource, err := c.GetResource(repositoryID, resourceID)
 		log.Printf("INFO\tworker %d requesting resource id %d from %s", workerID, resourceID, slug)
+		resource, err := c.GetResource(repositoryID, resourceID)
 		if err != nil {
+			log.Printf("ERROR\trepository %s resource-id %d: %s, skipping", slug, resourceID, err.Error())
+		} else {
+			eadBytes, err := c.GetEADAsByteArray(repositoryID, resourceID)
+			if err != nil {
+				log.Printf("ERROR\trepository %s resource-id %d: %s, skipping", slug, resourceID, err.Error())
+			} else {
+				filename := resource.EADID + ".xml"
+				outputFile := filepath.Join(exportDir, filename)
+				f, err := os.OpenFile(outputFile, os.O_CREATE | os.O_RDWR, 0755)
+				defer f.Close()
+				if err != nil {
+					log.Printf("ERROR\tcould not create %s", outputFile)
+				} else {
+					f.Write(eadBytes)
+					uris = append(uris, resource.URI)
+				}
+			}
 		}
-		uris = append(uris, resource.URI)
 	}
 
 	log.Println("INFO\tworker", workerID, "done")
