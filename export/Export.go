@@ -76,7 +76,7 @@ func processRepository() error {
 	log.Printf("INFO\tfound %d resources in %s repository", len(resourceIDs), slug)
 	if len(resourceIDs) > 1 {
 		//split resource slice into chunks
-		repoChunks := chunk(resourceIDs, len(resourceIDs)/2)
+		repoChunks := chunk(resourceIDs, len(resourceIDs)/ 8)
 		log.Printf("INFO\tSplit repositry slice into %d sub-slices", len(repoChunks))
 		uriChannel := make(chan []string)
 		for i, chunk := range repoChunks {
