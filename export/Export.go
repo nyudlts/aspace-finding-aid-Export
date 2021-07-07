@@ -89,9 +89,9 @@ func processRepository() error {
 			uris = append(uris, chunk...)
 		}
 		if len(uris) == len(resourceIDs) {
-			log.Printf("INFO\t%d of %d resources exported")
+			log.Printf("INFO\t%d of %d resources exported", len(uris), len(resourceIDs))
 		} else {
-			log.Printf("ERROR\t%d of %d resources exported")
+			log.Printf("ERROR\t%d of %d resources exported", len(uris), len(resourceIDs))
 		}
 	}
 	return nil
