@@ -83,7 +83,7 @@ func main() {
 	createExportDirectories()
 
 	//export Resources
-	log.Printf("INFO\tProcessing %d resources", len(resourceInfo))
+	fmt.Printf("  * processing %d resources\n", len(resourceInfo))
 	exportResources()
 
 	//exit

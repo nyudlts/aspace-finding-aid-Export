@@ -28,11 +28,22 @@ func exportResources() {
 		results = append(results, chunk...)
 	}
 
+	fmt.Printf("Processing complete, %d records proccessed.\n", len(results))
 	//print any errors encountered to terminal
+	errors := []ExportResult{}
 	for _, result := range results {
 		if result.Status == "ERROR" {
-			fmt.Println(result)
+			errors = append(errors, result)
 		}
+	}
+
+	if len(errors) > 0 {
+		fmt.Println("Errors Encountered:")
+		for _,e := range errors {
+			fmt.Println("  ", e)
+		}
+	} else {
+		fmt.Println("No errors encountered during processing")
 	}
 
 }
