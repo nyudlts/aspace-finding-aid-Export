@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/nyudlts/go-aspace"
 	"log"
 	"os"
 	"path/filepath"
@@ -81,8 +82,28 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 			continue
 		}
 
-		//create the output file
+		//name the output file
+
 		faFilename := resource.EADID + ".xml"
+		//validate the output
+		err = aspace.ValidateEAD(eadBytes); if err != nil {
+			outputFile := filepath.Join(workDir, rInfo.RepoSlug, "failures", faFilename)
+			f, innerErr := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
+			if innerErr != nil {
+				results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  err.Error() })
+				continue
+			}
+			defer f.Close()
+			_, innerErr = f.Write(eadBytes)
+			if innerErr != nil {
+				results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  err.Error() })
+				continue
+			}
+			results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  "failed ead validation" })
+			continue
+		}
+
+		//create the output file
 		outputFile := filepath.Join(workDir, rInfo.RepoSlug, "exports", faFilename)
 		f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
 		if err != nil {
