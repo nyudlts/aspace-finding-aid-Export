@@ -83,24 +83,27 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		}
 
 		//name the output file
-
 		faFilename := resource.EADID + ".xml"
+
 		//validate the output
-		err = aspace.ValidateEAD(eadBytes); if err != nil {
-			outputFile := filepath.Join(workDir, rInfo.RepoSlug, "failures", faFilename)
-			f, innerErr := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
-			if innerErr != nil {
-				results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  err.Error() })
+		if validate == true {
+			err = aspace.ValidateEAD(eadBytes);
+			if err != nil {
+				outputFile := filepath.Join(workDir, rInfo.RepoSlug, "failures", faFilename)
+				f, innerErr := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
+				if innerErr != nil {
+					results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
+					continue
+				}
+				defer f.Close()
+				_, innerErr = f.Write(eadBytes)
+				if innerErr != nil {
+					results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
+					continue
+				}
+				results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: "failed ead validation"})
 				continue
 			}
-			defer f.Close()
-			_, innerErr = f.Write(eadBytes)
-			if innerErr != nil {
-				results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  err.Error() })
-				continue
-			}
-			results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  "failed ead validation" })
-			continue
 		}
 
 		//create the output file

@@ -11,16 +11,17 @@ import (
 
 var (
 	client      *aspace.ASClient
-	workers		int
-	config      string
-	environment string
-	err         error
-	logfile     string
-	repository  int
-	timeout     int
-	workDir     string
-	repositoryMap map[string]int
+	workers			int
+	config      	string
+	environment 	string
+	err         	error
+	logfile     	string
+	repository  	int
+	timeout     	int
+	workDir     	string
+	repositoryMap 	map[string]int
 	resourceInfo	[]ResourceInfo
+	validate 		bool
 )
 
 type ResourceInfo struct {
@@ -36,6 +37,7 @@ func init() {
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
 	flag.IntVar(&workers, "workers", 8, "number of concurrent workers")
+	flag.BoolVar(&validate, "validate", false, "skip ead2 schema validation")
 }
 
 func main() {
