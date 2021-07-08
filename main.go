@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/dmnyu/aspace-fa-export/export"
 	"github.com/nyudlts/go-aspace"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 var (
 	client      *aspace.ASClient
+	workers		int
 	config      string
 	environment string
 	err         error
@@ -18,14 +19,23 @@ var (
 	repository  int
 	timeout     int
 	workDir     string
+	repositoryMap map[string]int
+	resourceInfo	[]ResourceInfo
 )
+
+type ResourceInfo struct {
+	RepoID 		int
+	RepoSlug 	string
+	ResourceID	int
+}
 
 func init() {
 	flag.StringVar(&config, "config", "go-aspace.yml", "location of go-aspace client")
-	flag.StringVar(&environment, "environment", "", "environemnt key")
+	flag.StringVar(&environment, "environment", "", "environment key")
 	flag.StringVar(&logfile, "log", "go-aspace-export.log", "location of log file")
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
+	flag.IntVar(&workers, "workers", 8, "number of concurrent workers")
 }
 
 func main() {
@@ -59,20 +69,22 @@ func main() {
 		log.Println("INFO\tgo-aspace client created, using go-aspace", aspace.LibraryVersion)
 	}
 
-	//setup export directories
-	setupDirectories()
-
 	//get a map of repositories to be exported
-	repositories := getRepositoryMap()
+	repositoryMap = getRepositoryMap()
+	log.Printf("INFO\tfound %d repositories", len(repositoryMap))
+	//get a slice of resourceInfo
+	resourceInfo = []ResourceInfo{}
+	getResourceIDs()
 
-	//export the repositories
-	for slug, id := range repositories {
-		fmt.Printf("Exporting repository: %s\n", slug)
-		err := export.ExportRepository(slug, id, workDir, client)
-		if err != nil {
-			log.Printf("ERROR\t%s", err.Error())
-		}
-	}
+	//setup export directories
+	createWorkDirectory()
+
+	//Create the repository export and failure directories
+	createExportDirectories()
+
+	//export Resources
+	log.Printf("INFO\tProcessing %d resources", len(resourceInfo))
+	exportResources()
 
 	//exit
 	log.Println("INFO\tprocess complete, exiting.")
@@ -93,8 +105,7 @@ func checkFlags() error {
 	return nil
 }
 
-func setupDirectories() {
-
+func createWorkDirectory() {
 	if _, err = os.Stat(workDir); os.IsNotExist(err) {
 		innerErr := os.Mkdir(workDir, 0777)
 		if innerErr != nil {
@@ -102,6 +113,50 @@ func setupDirectories() {
 		}
 	} else {
 		log.Println("INFO\twork directory exists, skipping creation", workDir)
+	}
+}
+
+func createExportDirectories() {
+	for slug, _ := range repositoryMap {
+
+		repositoryDir := filepath.Join(workDir, slug)
+		exportDir := filepath.Join(repositoryDir, "exports")
+		failureDir := filepath.Join(repositoryDir, "failures")
+
+		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
+			innerErr := os.Mkdir(repositoryDir, 0777)
+			if innerErr != nil {
+				log.Fatalf("FATAL\tcould not create a repository directory at %s", repositoryDir)
+			} else {
+				log.Println("INFO\tcreated repository directory", repositoryDir)
+			}
+		} else {
+			log.Println("INFO\trepository directory exists, skipping creation of", repositoryDir)
+		}
+
+		//create the repository export directory
+		if _, err := os.Stat(exportDir); os.IsNotExist(err) {
+			innerErr := os.Mkdir(exportDir, 0777)
+			if innerErr != nil {
+				log.Fatalf("FATAL\tcould not create an exports directory at %s", exportDir)
+			} else {
+				log.Println("INFO\tcreated exports directory", exportDir)
+			}
+		} else {
+			log.Println("INFO\texports directory exists, skipping creation of", exportDir)
+		}
+
+		//create the repository failure directory
+		if _, err := os.Stat(failureDir); os.IsNotExist(err) {
+			innerErr := os.Mkdir(failureDir, 0777)
+			if innerErr != nil {
+				log.Fatalf("FATAL\tcould not create a failure directory at %s", failureDir)
+			} else {
+				log.Println("INFO\tcreated repository directory", failureDir)
+			}
+		} else {
+			log.Println("INFO\tfailures directory exists, skipping creation of", failureDir)
+		}
 	}
 }
 
@@ -129,3 +184,20 @@ func getRepositoryMap() map[string]int {
 	}
 	return repositories
 }
+
+func getResourceIDs() {
+	for repositorySlug, repositoryID := range repositoryMap {
+		resourceIDs, err := client.GetResourceIDs(repositoryID)
+		if err != nil {
+			log.Fatalf("FATAL\t%s", err.Error())
+		}
+		for _, resourceID := range resourceIDs {
+			resourceInfo = append(resourceInfo, ResourceInfo{
+				RepoID:     repositoryID,
+				RepoSlug:   repositorySlug,
+				ResourceID: resourceID,
+			})
+		}
+	}
+}
+
