@@ -10,8 +10,8 @@ import (
 
 type ExportResult struct {
 	Status string
-	URI string
-	Error string
+	URI    string
+	Error  string
 }
 
 func exportResources() {
@@ -40,7 +40,7 @@ func exportResources() {
 
 	if len(errors) > 0 {
 		fmt.Println("Errors Encountered:")
-		for _,e := range errors {
+		for _, e := range errors {
 			fmt.Println("  ", e)
 		}
 	} else {
@@ -57,28 +57,28 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		//get the resource object
 		resource, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
-			results = append(results, ExportResult{ Status: "ERROR", URI:    "", Error:  err.Error() })
+			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
 			continue
 		}
 
 		//skip anything not set to publish
 		if resource.Publish != true {
 			log.Printf("INFO\tworker %d resource %s not set to publish, skipping", workerID, resource.URI)
-			results = append(results, ExportResult{ Status: "SUCCESS", URI: resource.URI, Error:  "" })
+			results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
 			continue
 		}
 
 		//skip anything with a blank eadid
 		if resource.EADID == "" {
 			log.Printf("ERROR\tworker %d: resource %s had a blank EADID", workerID, resource.URI)
-			results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  "Resource had a blank EADID, skipping" })
+			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: "Resource had a blank EADID, skipping"})
 			continue
 		}
 
 		//get the ead as bytes
 		eadBytes, err := client.GetEADAsByteArray(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
-			results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  err.Error() })
+			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 			continue
 		}
 
@@ -87,7 +87,7 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 
 		//validate the output
 		if validate == true {
-			err = aspace.ValidateEAD(eadBytes);
+			err = aspace.ValidateEAD(eadBytes)
 			if err != nil {
 				outputFile := filepath.Join(workDir, rInfo.RepoSlug, "failures", faFilename)
 				f, innerErr := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
@@ -101,6 +101,7 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 					results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 					continue
 				}
+				log.Printf("ERROR\tworker %d exported invalid resource %s - %s", workerID, resource.URI, resource.EADID)
 				results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: "failed ead validation"})
 				continue
 			}
@@ -110,7 +111,7 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		outputFile := filepath.Join(workDir, rInfo.RepoSlug, "exports", faFilename)
 		f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
 		if err != nil {
-			results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  err.Error() })
+			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 			continue
 		}
 		defer f.Close()
@@ -118,13 +119,13 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		//write the bytes to the output file
 		_, err = f.Write(eadBytes)
 		if err != nil {
-			results = append(results, ExportResult{ Status: "ERROR", URI: resource.URI, Error:  err.Error() })
+			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 			continue
 		}
 
 		//everything worked.
-		log.Printf("INFO\tworker %d exported resource %s", workerID, resource.URI)
-		results = append(results, ExportResult{ Status: "SUCCESS", URI:    resource.URI, Error:  "" })
+		log.Printf("INFO\tworker %d exported resource %s - %s", workerID, resource.URI, resource.EADID)
+		results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
 	}
 
 	fmt.Printf("  * worker %d finished, processed %d resources\n", workerID, len(resourceInfoChunk))

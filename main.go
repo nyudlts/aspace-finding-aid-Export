@@ -10,40 +10,72 @@ import (
 )
 
 var (
-	client      *aspace.ASClient
-	workers			int
-	config      	string
-	environment 	string
-	err         	error
-	logfile     	string
-	repository  	int
-	timeout     	int
-	workDir     	string
-	repositoryMap 	map[string]int
-	resourceInfo	[]ResourceInfo
-	validate 		bool
+	client        *aspace.ASClient
+	workers       int
+	config        string
+	environment   string
+	err           error
+	logfile       string
+	repository    int
+	timeout       int
+	workDir       string
+	repositoryMap map[string]int
+	resourceInfo  []ResourceInfo
+	validate      bool
+	help          bool
+	version       bool
+	appVersion    = "v0.1.0b"
 )
 
 type ResourceInfo struct {
-	RepoID 		int
-	RepoSlug 	string
-	ResourceID	int
+	RepoID     int
+	RepoSlug   string
+	ResourceID int
 }
 
 func init() {
-	flag.StringVar(&config, "config", "go-aspace.yml", "location of go-aspace client")
-	flag.StringVar(&environment, "environment", "", "environment key")
+	flag.StringVar(&config, "config", "go-aspace.yml", "location of go-aspace configuration file")
+	flag.StringVar(&environment, "environment", "", "environment key of instance to export from")
 	flag.StringVar(&logfile, "log", "go-aspace-export.log", "location of log file")
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
 	flag.IntVar(&workers, "workers", 8, "number of concurrent workers")
-	flag.BoolVar(&validate, "validate", false, "skip ead2 schema validation")
+	flag.BoolVar(&validate, "validate", false, "perform ead2 schema validation")
+	flag.StringVar(&workDir, "export-location", "aspace-export", "location to export finding aids")
+	flag.BoolVar(&help, "help", false, "display the help message")
+	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
+}
+
+func printHelp() {
+	fmt.Println("usage: aspace-export [options]")
+	fmt.Println("options:")
+	fmt.Println("  --config           path/to/the go-aspace configuration file                               default `go-aspace.yml`")
+	fmt.Println("  --environment      environment key in config file of the instance to export from          default `dev`")
+	fmt.Println("  --log              path/to/the log file to be created by the application                  default `go-aspace.yml`")
+	fmt.Println("  --repository       ID of the repsoitory to be exported, `0` will export all repositories  default 0 -- ")
+	fmt.Println("  --timeout          client timout in seconds to                                            default 20")
+	fmt.Println("  --workers          number of concurrent export workers to create                          default 8")
+	fmt.Println("  --validate         validate exported finding aids against ead2002 schema                  default `false`")
+	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports`")
+	fmt.Println("  --help             print this help screen")
+	fmt.Println("  --version          print the version and version of client version")
 }
 
 func main() {
 	//parse the flags
 	flag.Parse()
-	workDir = "aspace-export"
+
+	//check for the help message flag
+	if help == true {
+		printHelp()
+		os.Exit(0)
+	}
+
+	//check for the version flag
+	if version == true {
+		fmt.Println("aspace-export", appVersion, "- go-aspace client", aspace.LibraryVersion)
+		os.Exit(0)
+	}
 
 	//create a log file
 	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE, 0666)
@@ -119,7 +151,7 @@ func createWorkDirectory() {
 }
 
 func createExportDirectories() {
-	for slug, _ := range repositoryMap {
+	for slug := range repositoryMap {
 
 		repositoryDir := filepath.Join(workDir, slug)
 		exportDir := filepath.Join(repositoryDir, "exports")
@@ -202,4 +234,3 @@ func getResourceIDs() {
 		}
 	}
 }
-
