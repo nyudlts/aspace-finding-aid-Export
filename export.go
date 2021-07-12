@@ -14,6 +14,8 @@ type ExportResult struct {
 	Error  string
 }
 
+var numSkipped = 0
+
 func exportResources() {
 	resourceChunks := chunkResources()
 	resultChannel := make(chan []ExportResult)
@@ -25,11 +27,13 @@ func exportResources() {
 
 	for range resourceChunks {
 		chunk := <-resultChannel
-		log.Println("INFO\tAdding", len(chunk), "uris to uri list")
+		log.Println("INFO Adding", len(chunk), "uris to uri list")
 		results = append(results, chunk...)
 	}
 
-	fmt.Printf("Processing complete, %d records proccessed.\n", len(results))
+	fmt.Printf("\nProcessing complete, %d resources proccessed.\n", len(results))
+	fmt.Printf("%d resources skipped.\n", numSkipped)
+
 	//print any errors encountered to terminal
 	errors := []ExportResult{}
 	for _, result := range results {
@@ -39,19 +43,19 @@ func exportResources() {
 	}
 
 	if len(errors) > 0 {
-		fmt.Println("Errors Encountered:")
+		fmt.Println("\nErrors Encountered:")
 		for _, e := range errors {
 			fmt.Println("  ", e)
 		}
 	} else {
-		fmt.Println("No errors encountered during processing")
+		fmt.Println("\nNo errors encountered during processing")
 	}
 
 }
 
 func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
 	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
-	log.Println("INFO\tStarting worker", workerID, "processing", len(resourceInfoChunk), "resources")
+	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	results := []ExportResult{}
 	for _, rInfo := range resourceInfoChunk {
 		//get the resource object
@@ -63,14 +67,16 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 
 		//skip anything not set to publish
 		if resource.Publish != true {
-			log.Printf("INFO\tworker %d resource %s not set to publish, skipping", workerID, resource.URI)
+			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, resource.URI)
+			numSkipped = numSkipped + 1
 			results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
 			continue
 		}
 
 		//skip anything with a blank eadid
 		if resource.EADID == "" {
-			log.Printf("ERROR\tworker %d: resource %s had a blank EADID", workerID, resource.URI)
+			log.Printf("ERROR worker %d: resource %s had a blank EADID", workerID, resource.URI)
+			numSkipped = numSkipped + 1
 			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: "Resource had a blank EADID, skipping"})
 			continue
 		}
@@ -101,7 +107,7 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 					results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 					continue
 				}
-				log.Printf("ERROR\tworker %d exported invalid resource %s - %s", workerID, resource.URI, resource.EADID)
+				log.Printf("ERRORworker %d exported invalid resource %s - %s", workerID, resource.URI, resource.EADID)
 				results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: "failed ead validation"})
 				continue
 			}
@@ -124,11 +130,11 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		}
 
 		//everything worked.
-		log.Printf("INFO\tworker %d exported resource %s - %s", workerID, resource.URI, resource.EADID)
+		log.Printf("INFO worker %d exported resource %s - %s", workerID, resource.URI, resource.EADID)
 		results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
 	}
 
-	fmt.Printf("  * worker %d finished, processed %d resources\n", workerID, len(resourceInfoChunk))
+	fmt.Printf("  * Worker %d finished, processed %d resources\n", workerID, len(resourceInfoChunk))
 	resultChannel <- results
 }
 
