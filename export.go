@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/nyudlts/go-aspace"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -15,6 +17,7 @@ type ExportResult struct {
 }
 
 var numSkipped = 0
+var numValidationErr = 0
 
 func exportResources() {
 	resourceChunks := chunkResources()
@@ -31,8 +34,9 @@ func exportResources() {
 		results = append(results, chunk...)
 	}
 
-	fmt.Printf("\nProcessing complete, %d resources proccessed.\n", len(results))
-	fmt.Printf("%d resources skipped.\n", numSkipped)
+	fmt.Printf("\n%d resources proccessed:\n", len(results))
+	fmt.Printf("  * %d resources skipped\n", numSkipped)
+	fmt.Printf("  * %d validation errors\n", numValidationErr)
 
 	//print any errors encountered to terminal
 	errors := []ExportResult{}
@@ -43,12 +47,12 @@ func exportResources() {
 	}
 
 	if len(errors) > 0 {
-		fmt.Println("\nErrors Encountered:")
+		fmt.Println("Errors Encountered:")
 		for _, e := range errors {
-			fmt.Println("  ", e)
+			fmt.Println("      ", e)
 		}
 	} else {
-		fmt.Println("\nNo errors encountered during processing")
+		fmt.Println("  * No errors encountered during processing")
 	}
 
 }
@@ -88,45 +92,41 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 			continue
 		}
 
-		//name the output file
+		//create the output filename
 		faFilename := resource.EADID + ".xml"
+		outputFile := filepath.Join(workDir, rInfo.RepoSlug, "exports", faFilename)
 
 		//validate the output
 		if validate == true {
-			err = aspace.ValidateEAD(eadBytes)
+			err = aspace.ValidateEAD(eadBytes);
 			if err != nil {
-				outputFile := filepath.Join(workDir, rInfo.RepoSlug, "failures", faFilename)
-				f, innerErr := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
-				if innerErr != nil {
-					results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
-					continue
-				}
-				defer f.Close()
-				_, innerErr = f.Write(eadBytes)
-				if innerErr != nil {
-					results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
-					continue
-				}
-				log.Printf("ERRORworker %d exported invalid resource %s - %s", workerID, resource.URI, resource.EADID)
-				results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: "failed ead validation"})
-				continue
+				numValidationErr = numValidationErr + 1
+				log.Printf("ERROR worker %d resource %s - %s failed validation, writing to failures directory", workerID, resource.URI, resource.EADID)
+				outputFile = filepath.Join(workDir, rInfo.RepoSlug, "failures", faFilename)
 			}
 		}
 
 		//create the output file
-		outputFile := filepath.Join(workDir, rInfo.RepoSlug, "exports", faFilename)
-		f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755)
-		if err != nil {
+		eadFile, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755); if err != nil {
 			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
+			log.Printf("ERROR worker %d could not create file %s", workerID, faFilename)
 			continue
 		}
-		defer f.Close()
+		defer eadFile.Close()
 
-		//write the bytes to the output file
-		_, err = f.Write(eadBytes)
+		//write the ead to file
+		_, err = eadFile.Write(eadBytes)
 		if err != nil {
 			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
+			log.Printf("ERROR worker %d could not write to file %s", workerID, faFilename)
 			continue
+		}
+
+		//reformat the ead with tabs
+		if reformat == true {
+			err = tabReformatXML(outputFile); if err != nil {
+				log.Printf("ERROR worker %d could not reformat %s", workerID, outputFile)
+			}
 		}
 
 		//everything worked.
@@ -153,4 +153,27 @@ func chunkResources() [][]ResourceInfo {
 		divided = append(divided, resourceInfo[i:end])
 	}
 	return divided
+}
+
+func tabReformatXML(path string) error {
+
+	//lint the ead file
+	reformattedBytes, err := exec.Command("xmllint", "--format", path).Output()
+	if err != nil {
+		return fmt.Errorf("could not reformat %s", path)
+	}
+
+	//delete the original
+	err = os.Remove(path)
+	if err != nil {
+		return fmt.Errorf("could not delete %s", path)
+	}
+
+	//rewrite the file
+	err = ioutil.WriteFile(path, reformattedBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("could not write reformated bytes to %s", path)
+	}
+
+	return nil
 }

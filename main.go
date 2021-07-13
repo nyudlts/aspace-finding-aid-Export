@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	logfile = "/tmp/aspace-export.log"
+	logfile		  string
 	client        *aspace.ASClient
 	workers       int
 	config        string
@@ -25,6 +25,7 @@ var (
 	validate      bool
 	help          bool
 	version       bool
+	reformat      bool
 	appVersion    = "v0.1.0b"
 )
 
@@ -36,6 +37,7 @@ type ResourceInfo struct {
 
 func init() {
 	flag.StringVar(&config, "config", "", "location of go-aspace configuration file")
+	flag.StringVar(&logfile, "logfile", "aspace-export.log", "location of the log file to be written")
 	flag.StringVar(&environment, "environment", "dev", "environment key of instance to export from")
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
@@ -44,6 +46,7 @@ func init() {
 	flag.StringVar(&workDir, "export-location", "aspace-exports", "location to export finding aids")
 	flag.BoolVar(&help, "help", false, "display the help message")
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
+	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
 }
 
 func printHelp() {
@@ -77,7 +80,7 @@ func main() {
 	}
 
 	//create a log file
-	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE, 0666)
+	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
 		panic(err)
 	}
@@ -124,7 +127,7 @@ func main() {
 
 	//exit
 	log.Println("INFO process complete, exiting.")
-	fmt.Println("Process complete, exiting.")
+	fmt.Println("\nProcess complete, exiting.")
 	os.Exit(0)
 }
 
@@ -264,6 +267,7 @@ func cleanup() {
 	//move the logfile to the workdir
 	newLoc := filepath.Join(workDir, "aspace-export.log")
 	err = os.Rename(logfile, newLoc); if err != nil {
+		fmt.Println(err.Error())
 		fmt.Printf("Could not move log file from /tmp to %s\n", workDir)
 	}
 
