@@ -1,6 +1,6 @@
 aspace-export
 =============
-Command-line utility to bulk export EAD finding aids from Archivespace.
+Command-line utility for bulk export, validation and reformatting of EAD finding aids from Archivespace.
 
 Install
 -------
