@@ -270,7 +270,6 @@ func cleanup() {
 	newLoc := filepath.Join(workDir, "aspace-export.log")
 	err = os.Rename(logfile, newLoc); if err != nil {
 		fmt.Println(err.Error())
-		fmt.Printf("Could not move log file from /tmp to %s\n", workDir)
 	}
 
 }
