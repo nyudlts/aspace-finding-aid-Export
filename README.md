@@ -40,6 +40,7 @@ Command-Line Arguments
 --repository, ID of the repsoitory to be exported, `0` will export all repositories, default: 0<br>
 --timeout, client timout in seconds to, default: 20<br>
 --workers, number of concurrent export workers to create, default: 8<br>
+--marc, export marcxml files instead of ead, default: false<br>
 --validate, validate exported finding aids against ead2002 schema, default: `false`<br>
 --reformat, tab-reformat ead files, default: `false`<br/>
 --export-location, path/to/the location to export finding aids, default: `aspace-exports`<br>
