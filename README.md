@@ -1,6 +1,6 @@
 aspace-export
 =============
-Command-line utility to bulk export EAD finding aids from Archivespace.
+Command-line utility for bulk export, validation and reformatting of EAD finding aids from Archivespace.
 
 Install
 -------
@@ -10,9 +10,10 @@ Install
 
 Run
 ---
-$ aspace-export --config /path/to/go-aspace.yml [options]
+$ aspace-export --config /path/to/go-aspace.yml [options] 2> /dev/null 
+<br><br><b>note:</b> the underlying xml lib will output a lot of info about xml errors to stderr, `2> /dev/null` ignores the output but you can redirect to a file by replacing /dev/null 
 
-The program will create a directory heirarchy at the location set in the --location option. There will be a a subdirectory created for each repository that was exported, with the name of the repositories slug.
+The program will create a directory hierarchy at the location set in the --export-location option. There will be a subdirectory created for each repository that was exported, with the name of the repositories slug.
 within each repository directory there will be an `exports` directory containing all exported finding aids. 
 If the `validate` option was set when the program was run any finding aids that fail validation will be written to a subdirectory named `failures`.
 A log file will be created named `aspace-export.log` which will be moved to the root of output directory at the end of the process, the initial location of this log file can be set with the `--logfile` option.
@@ -43,6 +44,6 @@ Command-Line Arguments
 --marc, export marcxml files instead of ead, default: false<br>
 --validate, validate exported finding aids against ead2002 schema, default: `false`<br>
 --reformat, tab-reformat ead files, default: `false`<br/>
---export-location, path/to/the location to export finding aids, default: `aspace-exports`<br>
+--export-location, path/to/the location to export finding aids, default: `./aspace-exports`<br>
 --help, print this help screen<br>
 --version, print the application and go-aspace client version

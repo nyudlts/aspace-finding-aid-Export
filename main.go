@@ -27,7 +27,7 @@ var (
 	version       bool
 	reformat      bool
 	marc          bool
-	appVersion    = "v0.2.0b"
+	appVersion    = "v0.2.0-beta"
 )
 
 type ResourceInfo struct {
@@ -273,7 +273,6 @@ func cleanup() {
 	err = os.Rename(logfile, newLoc)
 	if err != nil {
 		fmt.Println(err.Error())
-		fmt.Printf("Could not move log file from /tmp to %s\n", workDir)
 	}
 
 }
