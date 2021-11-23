@@ -22,8 +22,13 @@ var numValidationErr = 0
 func exportResources() {
 	resourceChunks := chunkResources()
 	resultChannel := make(chan []ExportResult)
+
 	for i, chunk := range resourceChunks {
-		go exportFindingAidChunk(chunk, resultChannel, i+1)
+		if marc == true {
+			go exportMARCChunk(chunk, resultChannel, i+1)
+		} else {
+			go exportFindingAidChunk(chunk, resultChannel, i+1)
+		}
 	}
 
 	var results []ExportResult
@@ -56,11 +61,56 @@ func exportResources() {
 	}
 
 }
+func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
+	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
+	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
+	var results = []ExportResult{}
+
+	for _, rInfo := range resourceInfoChunk {
+		//get the resource object
+
+		resource, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
+		if err != nil {
+			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
+			continue
+		}
+
+		if resource.Publish != true {
+			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, resource.URI)
+			numSkipped = numSkipped + 1
+			results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
+			continue
+		}
+
+		endpoint := fmt.Sprintf("/repositories/%d/resources/marc21/%d.xml", rInfo.RepoID, rInfo.ResourceID)
+
+		marcBytes, err := client.GetEndpoint(endpoint)
+		if err != nil {
+			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
+			continue
+		}
+
+		//create the output filename
+		marcFilename := resource.EADID + "_20211123.xml"
+		marcPath := filepath.Join(workDir, rInfo.RepoSlug, "exports", marcFilename)
+
+		err = ioutil.WriteFile(marcPath, marcBytes, 0777)
+		if err != nil {
+			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
+			continue
+		}
+
+		log.Printf("INFO worker %d exported resource %s - %s", workerID, resource.URI, resource.EADID)
+		results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
+	}
+	resultChannel <- results
+}
 
 func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
 	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
-	results := []ExportResult{}
+
+	var results = []ExportResult{}
 	for _, rInfo := range resourceInfoChunk {
 		//get the resource object
 		resource, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
@@ -85,6 +135,8 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 			continue
 		}
 
+		//check david's regex eadid validation
+
 		//get the ead as bytes
 		eadBytes, err := client.GetEADAsByteArray(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
@@ -107,7 +159,7 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		}
 
 		//create the output file
-		eadFile, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0755); if err != nil {
+		eadFile, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0644); if err != nil {
 			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 			log.Printf("ERROR worker %d could not create file %s", workerID, faFilename)
 			continue

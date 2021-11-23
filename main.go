@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	logfile		  string
+	logfile       string
 	client        *aspace.ASClient
 	workers       int
 	config        string
@@ -26,7 +26,8 @@ var (
 	help          bool
 	version       bool
 	reformat      bool
-	appVersion    = "v0.1.0b"
+	marc          bool
+	appVersion    = "v0.2.0b"
 )
 
 type ResourceInfo struct {
@@ -47,6 +48,7 @@ func init() {
 	flag.BoolVar(&help, "help", false, "display the help message")
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
+	flag.BoolVar(&marc, "marc", false, "export marc xml")
 }
 
 func printHelp() {
@@ -164,7 +166,7 @@ func createExportDirectories() {
 		failureDir := filepath.Join(repositoryDir, "failures")
 
 		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(repositoryDir, 0777)
+			innerErr := os.Mkdir(repositoryDir, 0755)
 			if innerErr != nil {
 				log.Fatalf("FATAL could not create a repository directory at %s", repositoryDir)
 			} else {
@@ -268,7 +270,8 @@ func cleanup() {
 
 	//move the logfile to the workdir
 	newLoc := filepath.Join(workDir, "aspace-export.log")
-	err = os.Rename(logfile, newLoc); if err != nil {
+	err = os.Rename(logfile, newLoc)
+	if err != nil {
 		fmt.Println(err.Error())
 		fmt.Printf("Could not move log file from /tmp to %s\n", workDir)
 	}
