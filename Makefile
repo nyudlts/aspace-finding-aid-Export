@@ -10,3 +10,6 @@ package:
 build:
 	go mod tidy
 	go build -o aspace-export
+
+clean:
+	rm aspace-export

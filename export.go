@@ -61,6 +61,7 @@ func exportResources() {
 	}
 
 }
+
 func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
 	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
@@ -86,7 +87,7 @@ func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []Expo
 
 		marcBytes, err := client.GetEndpoint(endpoint)
 		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
+			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 			continue
 		}
 
@@ -115,7 +116,7 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		//get the resource object
 		resource, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
+			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 			continue
 		}
 
@@ -135,8 +136,6 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 			continue
 		}
 
-		//check david's regex eadid validation
-
 		//get the ead as bytes
 		eadBytes, err := client.GetEADAsByteArray(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
@@ -150,7 +149,7 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 
 		//validate the output
 		if validate == true {
-			err = aspace.ValidateEAD(eadBytes);
+			err = aspace.ValidateEAD(eadBytes)
 			if err != nil {
 				numValidationErr = numValidationErr + 1
 				log.Printf("ERROR worker %d resource %s - %s failed validation, writing to failures directory", workerID, resource.URI, resource.EADID)
@@ -159,7 +158,8 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 		}
 
 		//create the output file
-		eadFile, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0644); if err != nil {
+		eadFile, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0644)
+		if err != nil {
 			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
 			log.Printf("ERROR worker %d could not create file %s", workerID, faFilename)
 			continue
@@ -176,7 +176,8 @@ func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan 
 
 		//reformat the ead with tabs
 		if reformat == true {
-			err = tabReformatXML(outputFile); if err != nil {
+			err = tabReformatXML(outputFile)
+			if err != nil {
 				log.Printf("ERROR worker %d could not reformat %s", workerID, outputFile)
 			}
 		}
