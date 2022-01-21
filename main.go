@@ -27,6 +27,7 @@ var (
 	version       bool
 	reformat      bool
 	marc          bool
+	unpublished	  bool
 	appVersion    = "v0.2.1b"
 )
 
@@ -49,6 +50,7 @@ func init() {
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
 	flag.BoolVar(&marc, "marc", false, "export marc xml")
+	flag.BoolVar(&unpublished, "include-unpublished", false, "include unpublished files")
 }
 
 func printHelp() {
