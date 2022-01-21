@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 type ExportResult struct {
@@ -92,7 +93,9 @@ func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []Expo
 		}
 
 		//create the output filename
-		marcFilename := resource.EADID + "_20211123.xml"
+		t := time.Now()
+		tf := t.Format("20060102")
+		marcFilename := resource.EADID + "_" + tf + ".xml"
 		marcPath := filepath.Join(workDir, rInfo.RepoSlug, "exports", marcFilename)
 
 		err = ioutil.WriteFile(marcPath, marcBytes, 0777)
