@@ -77,7 +77,7 @@ func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []Expo
 			continue
 		}
 
-		if resource.Publish != true {
+		if unpublished == false && resource.Publish != true {
 			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, resource.URI)
 			numSkipped = numSkipped + 1
 			results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
@@ -96,7 +96,13 @@ func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []Expo
 		t := time.Now()
 		tf := t.Format("20060102")
 		marcFilename := resource.EADID + "_" + tf + ".xml"
-		marcPath := filepath.Join(workDir, rInfo.RepoSlug, "exports", marcFilename)
+		var marcPath string
+
+		if unpublished == true {
+			marcPath = filepath.Join(workDir, rInfo.RepoSlug, "unpublished", marcFilename)
+		} else {
+			marcPath = filepath.Join(workDir, rInfo.RepoSlug, "exports", marcFilename)
+		}
 
 		err = ioutil.WriteFile(marcPath, marcBytes, 0777)
 		if err != nil {
