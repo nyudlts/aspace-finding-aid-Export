@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -95,10 +96,11 @@ func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []Expo
 		//create the output filename
 		t := time.Now()
 		tf := t.Format("20060102")
-		marcFilename := resource.EADID + "_" + tf + ".xml"
-		var marcPath string
 
-		if unpublished == true {
+		marcFilename := strings.ToLower(MergeIDs(resource) + "_" + tf + ".xml")
+
+		var marcPath string
+		if unpublished == true && resource.Publish == false {
 			marcPath = filepath.Join(workDir, rInfo.RepoSlug, "unpublished", marcFilename)
 		} else {
 			marcPath = filepath.Join(workDir, rInfo.RepoSlug, "exports", marcFilename)
@@ -238,4 +240,14 @@ func tabReformatXML(path string) error {
 	}
 
 	return nil
+}
+
+func MergeIDs(r aspace.Resource) string {
+	ids := r.ID0
+	for _, i := range []string{r.ID1, r.ID2, r.ID3} {
+		if i != "" {
+			ids = ids + "_" + i
+		}
+	}
+	return ids
 }
