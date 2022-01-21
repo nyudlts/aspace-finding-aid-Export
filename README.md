@@ -2,11 +2,16 @@ aspace-export, v0.2.1b
 =============
 Command-line utility for bulk export, validation and reformatting of EAD finding aids from Archivespace.
 
-Install
--------
+Install From Binary
+-------------------
 1. download the latest binary for Mac or linux
 2. decompress the zip file
 3. Enter your ArchivesSpace credentials into the go-aspace.yml file
+
+Build From Source
+-----------------
+Pre-requisite: libxml2<br>
+$ make build 
 
 Run
 ---
@@ -47,3 +52,9 @@ Command-Line Arguments
 --export-location, path/to/the location to export finding aids, default: `./aspace-exports`<br>
 --help, print this help screen<br>
 --version, print the application and go-aspace client version
+
+Package
+-----------------
+Pre-requisite: libxml2<br>
+$ make package VERSION="release version" OS="osx,linux"
+
