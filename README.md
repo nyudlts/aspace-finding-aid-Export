@@ -1,4 +1,4 @@
-aspace-export, v0.2.1b
+aspace-export, v0.2.2b
 =============
 Command-line utility for bulk export, validation and reformatting of EAD finding aids from Archivespace.
 
@@ -47,6 +47,7 @@ Command-Line Arguments
 --timeout, client timout in seconds to, default: 20<br>
 --workers, number of concurrent export workers to create, default: 8<br>
 --marc, export marcxml files instead of ead, default: false<br>
+--include-unpublished, export include unpublished marcxml files, default: false<br>
 --validate, validate exported finding aids against ead2002 schema, default: `false`<br>
 --reformat, tab-reformat ead files, default: `false`<br/>
 --export-location, path/to/the location to export finding aids, default: `./aspace-exports`<br>
