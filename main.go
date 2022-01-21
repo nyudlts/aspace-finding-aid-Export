@@ -81,7 +81,7 @@ func main() {
 
 	//check for the version flag
 	if version == true {
-		fmt.Println("aspace-export", appVersion, "- go-aspace client", aspace.LibraryVersion)
+		fmt.Println("aspace-export", appVersion, ", go-aspace", aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
@@ -166,6 +166,7 @@ func createExportDirectories() {
 		repositoryDir := filepath.Join(workDir, slug)
 		exportDir := filepath.Join(repositoryDir, "exports")
 		failureDir := filepath.Join(repositoryDir, "failures")
+		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
 
 		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
 			innerErr := os.Mkdir(repositoryDir, 0755)
@@ -196,10 +197,23 @@ func createExportDirectories() {
 			if innerErr != nil {
 				log.Fatalf("FATAL could not create a failure directory at %s", failureDir)
 			} else {
-				log.Println("INFO created repository directory", failureDir)
+				log.Println("INFO created failures directory", failureDir)
 			}
 		} else {
 			log.Println("INFO failures directory exists, skipping creation of", failureDir)
+		}
+
+		if unpublished == true {
+			if _, err := os.Stat(unpublishedDir); os.IsNotExist(err) {
+				innerErr := os.Mkdir(unpublishedDir, 0777)
+				if innerErr != nil {
+					log.Fatalf("FATAL could not create a unpublished directory at %s", unpublishedDir)
+				} else {
+					log.Println("INFO created unpublished directory", unpublishedDir)
+				}
+			} else {
+				log.Println("INFO unpublished directory exists, skipping creation of", unpublishedDir)
+			}
 		}
 	}
 }
