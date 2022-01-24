@@ -4,7 +4,7 @@ Command-line utility for bulk export, validation and reformatting of EAD finding
 
 Install From Binary
 -------------------
-1. download the latest binary for Mac or linux
+1. download the latest binary for Mac or linux https://github.com/nyudlts/aspace-finding-aid-export/releases/tag/v0.2.2b
 2. decompress the zip file
 3. Enter your ArchivesSpace credentials into the go-aspace.yml file
 
