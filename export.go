@@ -251,3 +251,64 @@ func MergeIDs(r aspace.Resource) string {
 	}
 	return ids
 }
+
+func exportResource() ExportResult {
+	fmt.Println("Exporting Individual Resource")
+	log.Println("Exporting Individual Resource")
+
+	rep, err := client.GetRepository(repository)
+	if err != nil {
+		return ExportResult{Status: "ERROR", URI: rep.URI, Error: err.Error()}
+	}
+
+	info := ResourceInfo{RepoID: repository, RepoSlug: rep.Slug, ResourceID: resource}
+
+	if marc == true {
+		return exportMarc(info)
+	} else {
+		return ExportResult{"ERROR", "", "Finding AID Export Not Implemented"}
+	}
+
+}
+
+func exportMarc(info ResourceInfo) ExportResult {
+
+	res, err := client.GetResource(repository, resource)
+	if err != nil {
+		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
+	}
+
+	if unpublished == false && res.Publish != true {
+		log.Printf("INFO resource %s not set to publish, skipping", res.URI)
+		numSkipped = numSkipped + 1
+		return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
+	}
+
+	endpoint := fmt.Sprintf("/repositories/%d/resources/marc21/%d.xml", repository, resource)
+
+	marcBytes, err := client.GetEndpoint(endpoint)
+	if err != nil {
+		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
+	}
+
+	//create the output filename
+	t := time.Now()
+	tf := t.Format("20060102")
+
+	marcFilename := strings.ToLower(MergeIDs(res) + "_" + tf + ".xml")
+
+	var marcPath string
+	if unpublished == true && res.Publish == false {
+		marcPath = filepath.Join(workDir, info.RepoSlug, "unpublished", marcFilename)
+	} else {
+		marcPath = filepath.Join(workDir, info.RepoSlug, "exports", marcFilename)
+	}
+
+	err = ioutil.WriteFile(marcPath, marcBytes, 0777)
+	if err != nil {
+		return ExportResult{Status: "ERROR", URI: "", Error: err.Error()}
+	}
+
+	log.Printf("INFO exported resource %s - %s", res.URI, res.EADID)
+	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
+}

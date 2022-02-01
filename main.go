@@ -27,8 +27,9 @@ var (
 	version       bool
 	reformat      bool
 	marc          bool
-	unpublished	  bool
+	unpublished   bool
 	appVersion    = "v0.2.2b"
+	resource      int
 )
 
 type ResourceInfo struct {
@@ -51,6 +52,7 @@ func init() {
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
 	flag.BoolVar(&marc, "marc", false, "export marc xml")
 	flag.BoolVar(&unpublished, "include-unpublished", false, "include unpublished files")
+	flag.IntVar(&resource, "resource", 0, "individual resource ID to export")
 }
 
 func printHelp() {
@@ -65,6 +67,7 @@ func printHelp() {
 	fmt.Println("  --validate         validate exported finding aids against ead2002 schema                  default `false`")
 	fmt.Println("  --reformat         tab reformat ead xml files                                             default `false`")
 	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports`")
+	fmt.Println("  --include-unpublished	include unpublished finding aids                            	default `aspace-exports`")
 	fmt.Println("  --help             print this help screen")
 	fmt.Println("  --version          print the version and version of client version")
 }
@@ -114,9 +117,7 @@ func main() {
 	//get a map of repositories to be exported
 	repositoryMap = getRepositoryMap()
 	log.Printf("INFO found %d repositories", len(repositoryMap))
-	//get a slice of resourceInfo
-	resourceInfo = []ResourceInfo{}
-	getResourceIDs()
+
 
 	//setup export directories
 	createWorkDirectory()
@@ -124,9 +125,16 @@ func main() {
 	//Create the repository export and failure directories
 	createExportDirectories()
 
-	//export Resources
-	fmt.Printf("Processing %d resources\n", len(resourceInfo))
-	exportResources()
+	if resource != 0 {
+		fmt.Println(exportResource())
+	} else {
+		//get a slice of resourceInfo
+		resourceInfo = []ResourceInfo{}
+		getResourceIDs()
+		//export Resources
+		fmt.Printf("Processing %d resources\n", len(resourceInfo))
+		exportResources()
+	}
 
 	//clean up directories
 	cleanup()
