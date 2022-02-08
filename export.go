@@ -141,7 +141,6 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 		err = aspace.ValidateMARC(marcBytes)
 		if err != nil {
 			warning = true
-			fmt.Println(err.Error())
 			warningType = "failed MARC21 validation, writing to failures directory"
 			log.Printf("WARNING worker %d resource %s - %s %s %s", workerID, res.URI, res.EADID, warningType, err.Error())
 			marcPath = filepath.Join(workDir, info.RepoSlug, "failures", marcFilename)
