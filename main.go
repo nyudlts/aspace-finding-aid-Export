@@ -27,8 +27,8 @@ var (
 	version       bool
 	reformat      bool
 	marc          bool
-	unpublished	  bool
-	appVersion    = "v0.2.2b"
+	unpublished   bool
+	appVersion    = "v0.3.0b"
 )
 
 type ResourceInfo struct {

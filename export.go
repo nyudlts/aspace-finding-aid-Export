@@ -26,11 +26,7 @@ func exportResources() {
 	resultChannel := make(chan []ExportResult)
 
 	for i, chunk := range resourceChunks {
-		if marc == true {
-			go exportMARCChunk(chunk, resultChannel, i+1)
-		} else {
-			go exportFindingAidChunk(chunk, resultChannel, i+1)
-		}
+		go exportChunk(chunk, resultChannel, i+1)
 	}
 
 	var results []ExportResult
@@ -63,143 +59,108 @@ func exportResources() {
 	}
 
 }
-
-func exportMARCChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
+func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
 	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	var results = []ExportResult{}
 
+	//loop through the chunk
 	for _, rInfo := range resourceInfoChunk {
-		//get the resource object
 
+		//get the resource object
 		resource, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
 			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
+			log.Printf("INFO worker %d could not retrieve resource %s", workerID, resource.URI)
 			continue
 		}
 
+		//check if the resource is set to be published
 		if unpublished == false && resource.Publish != true {
 			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, resource.URI)
 			numSkipped = numSkipped + 1
-			results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
+			results = append(results, ExportResult{Status: "SKIPPED", URI: resource.URI, Error: ""})
 			continue
 		}
 
-		endpoint := fmt.Sprintf("/repositories/%d/resources/marc21/%d.xml", rInfo.RepoID, rInfo.ResourceID)
-
-		marcBytes, err := client.GetEndpoint(endpoint)
-		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
-			continue
-		}
-
-		//create the output filename
-		t := time.Now()
-		tf := t.Format("20060102")
-
-		marcFilename := strings.ToLower(MergeIDs(resource) + "_" + tf + ".xml")
-
-		var marcPath string
-		if unpublished == true && resource.Publish == false {
-			marcPath = filepath.Join(workDir, rInfo.RepoSlug, "unpublished", marcFilename)
+		if marc == true {
+			//export the marc record
+			results = append(results, exportMarc(rInfo, resource, workerID))
 		} else {
-			marcPath = filepath.Join(workDir, rInfo.RepoSlug, "exports", marcFilename)
-		}
 
-		err = ioutil.WriteFile(marcPath, marcBytes, 0777)
-		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
-			continue
 		}
-
-		log.Printf("INFO worker %d exported resource %s - %s", workerID, resource.URI, resource.EADID)
-		results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
 	}
 	resultChannel <- results
 }
 
-func exportFindingAidChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
-	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
-	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
+func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResult {
+	endpoint := fmt.Sprintf("/repositories/%d/resources/marc21/%d.xml", info.RepoID, info.ResourceID)
 
-	var results = []ExportResult{}
-	for _, rInfo := range resourceInfoChunk {
-		//get the resource object
-		resource, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
-		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
-			continue
-		}
-
-		//skip anything not set to publish
-		if resource.Publish != true {
-			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, resource.URI)
-			numSkipped = numSkipped + 1
-			results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
-			continue
-		}
-
-		//skip anything with a blank eadid
-		if resource.EADID == "" {
-			log.Printf("ERROR worker %d: resource %s had a blank EADID", workerID, resource.URI)
-			numSkipped = numSkipped + 1
-			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: "Resource had a blank EADID, skipping"})
-			continue
-		}
-
-		//get the ead as bytes
-		eadBytes, err := client.GetEADAsByteArray(rInfo.RepoID, rInfo.ResourceID)
-		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
-			continue
-		}
-
-		//create the output filename
-		faFilename := resource.EADID + ".xml"
-		outputFile := filepath.Join(workDir, rInfo.RepoSlug, "exports", faFilename)
-
-		//validate the output
-		if validate == true {
-			err = aspace.ValidateEAD(eadBytes)
-			if err != nil {
-				numValidationErr = numValidationErr + 1
-				log.Printf("ERROR worker %d resource %s - %s failed validation, writing to failures directory", workerID, resource.URI, resource.EADID)
-				outputFile = filepath.Join(workDir, rInfo.RepoSlug, "failures", faFilename)
-			}
-		}
-
-		//create the output file
-		eadFile, err := os.OpenFile(outputFile, os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
-			log.Printf("ERROR worker %d could not create file %s", workerID, faFilename)
-			continue
-		}
-		defer eadFile.Close()
-
-		//write the ead to file
-		_, err = eadFile.Write(eadBytes)
-		if err != nil {
-			results = append(results, ExportResult{Status: "ERROR", URI: resource.URI, Error: err.Error()})
-			log.Printf("ERROR worker %d could not write to file %s", workerID, faFilename)
-			continue
-		}
-
-		//reformat the ead with tabs
-		if reformat == true {
-			err = tabReformatXML(outputFile)
-			if err != nil {
-				log.Printf("ERROR worker %d could not reformat %s", workerID, outputFile)
-			}
-		}
-
-		//everything worked.
-		log.Printf("INFO worker %d exported resource %s - %s", workerID, resource.URI, resource.EADID)
-		results = append(results, ExportResult{Status: "SUCCESS", URI: resource.URI, Error: ""})
+	//get the marc record
+	marcBytes, err := client.GetEndpoint(endpoint)
+	if err != nil {
+		log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
+		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
 	}
 
-	fmt.Printf("  * Worker %d finished, processed %d resources\n", workerID, len(resourceInfoChunk))
-	resultChannel <- results
+	//create the output filename
+	t := time.Now()
+	tf := t.Format("20060102")
+	marcFilename := strings.ToLower(MergeIDs(res) + "_" + tf + ".xml")
+
+	//set the location to write the marc record
+	var marcPath string
+	if unpublished == true && res.Publish == false {
+		marcPath = filepath.Join(workDir, info.RepoSlug, "unpublished", marcFilename)
+	} else {
+		marcPath = filepath.Join(workDir, info.RepoSlug, "exports", marcFilename)
+	}
+
+	//write the marc file
+	err = ioutil.WriteFile(marcPath, marcBytes, 0777)
+	if err != nil {
+		log.Printf("INFO worker %d could not write the marc record %s", workerID, res.URI)
+		return ExportResult{Status: "ERROR", URI: "", Error: err.Error()}
+	}
+
+	//return the result
+	log.Printf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID)
+	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
+}
+
+func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResult {
+
+	//get the ead as bytes
+	eadBytes, err := client.GetEADAsByteArray(info.RepoID, info.ResourceID)
+	if err != nil {
+		log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
+		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
+	}
+
+	//create the output filename
+	faFilename := res.EADID + ".xml"
+	outputFile := filepath.Join(workDir, info.RepoSlug, "exports", faFilename)
+
+	//validate the output
+	if validate == true {
+		err = aspace.ValidateEAD(eadBytes)
+		if err != nil {
+			numValidationErr = numValidationErr + 1
+			log.Printf("WARNING worker %d resource %s - %s failed validation, writing to failures directory", workerID, res.URI, res.EADID)
+			outputFile = filepath.Join(workDir, info.RepoSlug, "failures", faFilename)
+		}
+	}
+
+	//create the output file
+	err = ioutil.WriteFile(outputFile, eadBytes, 0777)
+	if err != nil {
+		log.Printf("INFO worker %d could not write the ead file %s", workerID, res.URI)
+		return ExportResult{Status: "ERROR", URI: "", Error: err.Error()}
+	}
+
+	//return the result
+	log.Printf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID)
+	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
 }
 
 func chunkResources() [][]ResourceInfo {
