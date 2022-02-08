@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -39,7 +40,7 @@ type ResourceInfo struct {
 
 func init() {
 	flag.StringVar(&config, "config", "", "location of go-aspace configuration file")
-	flag.StringVar(&logfile, "logfile", "aspace-export.log", "location of the log file to be written")
+	flag.StringVar(&logfile, "logfile", "aspace-export", "location of the log file to be written")
 	flag.StringVar(&environment, "environment", "dev", "environment key of instance to export from")
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
@@ -86,6 +87,9 @@ func main() {
 	}
 
 	//create a log file
+	t := time.Now()
+	tf := t.Format("20060102")
+	logfile = logfile + "-" + tf + ".log"
 	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE, 0777)
 	if err != nil {
 		panic(err)
@@ -93,7 +97,15 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f)
 	log.Printf("INFO Running go-aspace-export")
-	fmt.Printf("Running go-aspace finding aid exporter, logging to %s\n", logfile)
+
+	var exportType string
+	if marc == true {
+		exportType = "MARC21"
+	} else {
+		exportType = "EAD2002"
+	}
+
+	fmt.Printf("Running go-aspace %s exporter, logging to %s\n", exportType, logfile)
 
 	//check critical flags
 	err = checkFlags()
@@ -133,7 +145,7 @@ func main() {
 
 	//exit
 	log.Println("INFO process complete, exiting.")
-	fmt.Println("\nProcess complete, exiting.")
+	fmt.Println("\naspace-export complete, exiting.")
 	os.Exit(0)
 }
 
@@ -285,7 +297,7 @@ func cleanup() {
 	}
 
 	//move the logfile to the workdir
-	newLoc := filepath.Join(workDir, "aspace-export.log")
+	newLoc := filepath.Join(workDir, logfile)
 	err = os.Rename(logfile, newLoc)
 	if err != nil {
 		fmt.Println(err.Error())
