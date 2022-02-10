@@ -19,6 +19,7 @@ var (
 	environment   string
 	err           error
 	repository    int
+	resource      int
 	timeout       int
 	workDir       string
 	repositoryMap map[string]int
@@ -27,9 +28,9 @@ var (
 	help          bool
 	version       bool
 	reformat      bool
-	marc          bool
+	format        string
 	unpublished   bool
-	appVersion    = "v0.3.0b"
+	appVersion    = "v0.4.0b"
 )
 
 type ResourceInfo struct {
@@ -43,6 +44,7 @@ func init() {
 	flag.StringVar(&logfile, "logfile", "aspace-export", "location of the log file to be written")
 	flag.StringVar(&environment, "environment", "dev", "environment key of instance to export from")
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
+	flag.IntVar(&resource, "resource", 0, "ID of a single resource to be exported")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
 	flag.IntVar(&workers, "workers", 8, "number of concurrent workers")
 	flag.BoolVar(&validate, "validate", false, "perform ead2 schema validation")
@@ -50,7 +52,7 @@ func init() {
 	flag.BoolVar(&help, "help", false, "display the help message")
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
-	flag.BoolVar(&marc, "marc", false, "export marc xml")
+	flag.StringVar(&format, "format", "ead", "format of export: ead or marc")
 	flag.BoolVar(&unpublished, "include-unpublished", false, "include unpublished files")
 }
 
@@ -61,7 +63,9 @@ func printHelp() {
 	fmt.Println("  --logfile          path/to/the logfile                                                    default `aspace-export.log`")
 	fmt.Println("  --environment      environment key in config file of the instance to export from          default `dev`")
 	fmt.Println("  --repository       ID of the repository to be exported, `0` will export all repositories  default 0 -- ")
-	fmt.Println("  --timeout          client timout in seconds to                                            default 20")
+	fmt.Println("  --resource         ID of the resource to be exported, `0` will export all resources  	 default 0 -- ")
+	fmt.Println("  --timeout          client timout in seconds                                               default 20")
+	fmt.Println("  --format           the export format eitherb`ead` or `marc`                               default `ead`")
 	fmt.Println("  --workers          number of concurrent export workers to create                          default 8")
 	fmt.Println("  --validate         validate exported finding aids against ead2002 schema                  default `false`")
 	fmt.Println("  --reformat         tab reformat ead xml files                                             default `false`")
@@ -98,21 +102,14 @@ func main() {
 	log.SetOutput(f)
 	log.Printf("INFO Running go-aspace-export")
 
-	var exportType string
-	if marc == true {
-		exportType = "MARC21"
-	} else {
-		exportType = "EAD2002"
-	}
-
-	fmt.Printf("Running go-aspace %s exporter, logging to %s\n", exportType, logfile)
-
 	//check critical flags
 	err = checkFlags()
 	if err != nil {
 		fmt.Println(err.Error())
 		log.Fatalln("FATAL", err)
 	}
+
+	fmt.Printf("Running go-aspace %s exporter, logging to %s\n", format, logfile)
 
 	//get a go-aspace api client
 	log.Println("INFO Creating go-aspace client")
@@ -156,6 +153,10 @@ func checkFlags() error {
 	}
 	if _, err := os.Stat(config); os.IsNotExist(err) {
 		return fmt.Errorf("go-aspace config file does not exist at %s", config)
+	}
+
+	if format != "marc" && format != "ead" {
+		return fmt.Errorf("--format must be either ead or marc")
 	}
 
 	return nil
@@ -259,10 +260,19 @@ func getRepositoryMap() map[string]int {
 }
 
 func getResourceIDs() {
+
 	for repositorySlug, repositoryID := range repositoryMap {
 		resourceIDs, err := client.GetResourceIDs(repositoryID)
 		if err != nil {
 			log.Fatalf("FATAL %s", err.Error())
+		}
+		if resource != 0 {
+			resourceInfo = append(resourceInfo, ResourceInfo{
+				RepoID:     repository,
+				RepoSlug:   repositorySlug,
+				ResourceID: resource,
+			})
+			continue
 		}
 		for _, resourceID := range resourceIDs {
 			resourceInfo = append(resourceInfo, ResourceInfo{
@@ -285,7 +295,7 @@ func cleanup() {
 				defer f.Close()
 				_, err = f.Readdirnames(1)
 				if err == io.EOF {
-					log.Printf("INFO removing empty directory at:%s", path)
+					log.Printf("INFO removing empty directory at: %s", path)
 					os.Remove(path)
 				}
 			}

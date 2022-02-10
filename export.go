@@ -87,26 +87,27 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 	for _, rInfo := range resourceInfoChunk {
 
 		//get the resource object
-		resource, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
+		res, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
 			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
-			log.Printf("INFO worker %d could not retrieve resource %s", workerID, resource.URI)
+			log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
 			continue
 		}
 
 		//check if the resource is set to be published
-		if unpublished == false && resource.Publish != true {
-			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, resource.URI)
+		if unpublished == false && res.Publish != true {
+			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, res.URI)
 			numSkipped = numSkipped + 1
-			results = append(results, ExportResult{Status: "SKIPPED", URI: resource.URI, Error: ""})
+			results = append(results, ExportResult{Status: "SKIPPED", URI: res.URI, Error: ""})
 			continue
 		}
 
-		if marc == true {
-			//export the marc record
-			results = append(results, exportMarc(rInfo, resource, workerID))
+		if format == "marc" {
+			results = append(results, exportMarc(rInfo, res, workerID))
+		} else if format == "ead" {
+			results = append(results, exportEAD(rInfo, res, workerID))
 		} else {
-			results = append(results, exportEAD(rInfo, resource, workerID))
+			panic(fmt.Sprintf("aspace-export does not currently support %s as a format", format))
 		}
 	}
 	resultChannel <- results
