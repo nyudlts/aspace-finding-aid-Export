@@ -105,7 +105,7 @@ func main() {
 	//check critical flags
 	err = checkFlags()
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("FATAL error:", err.Error())
 		log.Fatalln("FATAL", err)
 	}
 
@@ -151,12 +151,17 @@ func checkFlags() error {
 	if config == "" {
 		return fmt.Errorf("location of go-aspace config file is mandatory, set the --config option")
 	}
+
 	if _, err := os.Stat(config); os.IsNotExist(err) {
 		return fmt.Errorf("go-aspace config file does not exist at %s", config)
 	}
 
 	if format != "marc" && format != "ead" {
 		return fmt.Errorf("--format must be either ead or marc")
+	}
+
+	if resource != 0 && repository == 0 {
+		return fmt.Errorf("A single resource can not be exported if the repository is not specified, include the --repository flag.")
 	}
 
 	return nil
