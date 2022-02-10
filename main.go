@@ -86,7 +86,7 @@ func main() {
 
 	//check for the version flag
 	if version == true {
-		fmt.Println("aspace-export", appVersion, ", go-aspace", aspace.LibraryVersion)
+		fmt.Printf("aspace-export %s, go-aspace %s\n", appVersion, aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
