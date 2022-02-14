@@ -51,7 +51,7 @@ func exportResources() {
 		case "WARNING":
 			warnings = append(warnings, result)
 		case "SKIPPED":
-			warnings = append(skipped, result)
+			skipped = append(skipped, result)
 		default:
 		}
 	}
@@ -79,13 +79,17 @@ func exportResources() {
 }
 
 func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
-	fmt.Println("  Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
+	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	var results = []ExportResult{}
 
+	counter := 0
 	//loop through the chunk
 	for _, rInfo := range resourceInfoChunk {
-
+		counter = counter + 1
+		if counter > 1 && (counter-1)%50 == 0 {
+			fmt.Printf("  * Worker %d has completed %d exports\n", workerID, counter-1)
+		}
 		//get the resource object
 		res, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
@@ -95,7 +99,7 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 		}
 
 		//check if the resource is set to be published
-		if unpublished == false && res.Publish != true {
+		if unpublishedResources == false && res.Publish != true {
 			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, res.URI)
 			numSkipped = numSkipped + 1
 			results = append(results, ExportResult{Status: "SKIPPED", URI: res.URI, Error: ""})
@@ -116,7 +120,7 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResult {
 
 	//get the marc record
-	marcBytes, err := client.GetMARCAsByteArray(info.RepoID, info.ResourceID)
+	marcBytes, err := client.GetMARCAsByteArray(info.RepoID, info.ResourceID, unpublishedNotes)
 	if err != nil {
 		log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
 		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
@@ -129,7 +133,7 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 
 	//set the location to write the marc record
 	var marcPath string
-	if unpublished == true && res.Publish == false {
+	if unpublishedResources == true && res.Publish == false {
 		marcPath = filepath.Join(workDir, info.RepoSlug, "unpublished", marcFilename)
 	} else {
 		marcPath = filepath.Join(workDir, info.RepoSlug, "exports", marcFilename)
@@ -167,7 +171,7 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResult {
 
 	//get the ead as bytes
-	eadBytes, err := client.GetEADAsByteArray(info.RepoID, info.ResourceID)
+	eadBytes, err := client.GetEADAsByteArray(info.RepoID, info.ResourceID, unpublishedNotes)
 	if err != nil {
 		log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
 		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}

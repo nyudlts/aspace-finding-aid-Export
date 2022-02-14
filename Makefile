@@ -13,3 +13,4 @@ build:
 
 clean:
 	rm aspace-export
+	rm -r aspace-exports*

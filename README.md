@@ -40,19 +40,21 @@ aspace-exports<br>
 Command-Line Arguments
 ----------------------
 --config, path/to/go-aspace.yml configuration file, required<br>
---logfile, path/to/the logfile to be created, default `aspace-export.log`<br>
+
 --environment, environment key in config file of the instance to export from, default: `dev`<br>
+--export-location, path/to/the location to export finding aids, default: `./aspace-exports`<br>
+--format, format of export: ead or marc, default: `ead`<br/>
+--include-unpublished-resources, include unpublished resources in exports, default: false<br>
+--include-unpublished-notes, include unpublished notes in exports, default: false<br>
+--logfile, path/to/the logfile to be created, default `aspace-export.log`<br>
+--reformat, tab-reformat ead files, default: `false`<br/>
 --repository, ID of the repository to be exported, `0` will export all repositories, default: 0<br>
 --resource, ID of the resource to be exported, `0` will export all resources, default: 0<br>
 --timeout, client timout in seconds to, default: 20<br>
---workers, number of concurrent export workers to create, default: 8<br>
---format, format of export: ead or marc, default: `ead`<br/>
---include-unpublished, export include unpublished marcxml files, default: false<br>
---validate, validate exported finding aids against ead2002 schema, default: `false`<br>
---reformat, tab-reformat ead files, default: `false`<br/>
---export-location, path/to/the location to export finding aids, default: `./aspace-exports`<br>
---help, print this help screen<br>
+--validate, validate exported finding aids against schema, default: `false`<br>
 --version, print the application and go-aspace client version
+--workers, number of concurrent export workers to create, default: 8<br>
+--help, print this help screen<br>
 
 Package
 -----------------

@@ -12,25 +12,26 @@ import (
 )
 
 var (
-	logfile       string
-	client        *aspace.ASClient
-	workers       int
-	config        string
-	environment   string
-	err           error
-	repository    int
-	resource      int
-	timeout       int
-	workDir       string
-	repositoryMap map[string]int
-	resourceInfo  []ResourceInfo
-	validate      bool
-	help          bool
-	version       bool
-	reformat      bool
-	format        string
-	unpublished   bool
-	appVersion    = "v0.4.0b"
+	logfile              string
+	client               *aspace.ASClient
+	workers              int
+	config               string
+	environment          string
+	err                  error
+	repository           int
+	resource             int
+	timeout              int
+	workDir              string
+	repositoryMap        map[string]int
+	resourceInfo         []ResourceInfo
+	validate             bool
+	help                 bool
+	version              bool
+	reformat             bool
+	format               string
+	unpublishedNotes     bool
+	unpublishedResources bool
+	appVersion           = "v0.5.0b"
 )
 
 type ResourceInfo struct {
@@ -53,25 +54,28 @@ func init() {
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
 	flag.StringVar(&format, "format", "ead", "format of export: ead or marc")
-	flag.BoolVar(&unpublished, "include-unpublished", false, "include unpublished files")
+	flag.BoolVar(&unpublishedNotes, "include-unpublished-notes", false, "include unpublished notes")
+	flag.BoolVar(&unpublishedResources, "include-unpublished-resources", false, "include unpublished resources")
 }
 
 func printHelp() {
 	fmt.Println("usage: aspace-export [options]")
 	fmt.Println("options:")
 	fmt.Println("  --config           path/to/the go-aspace configuration file                               default `go-aspace.yml`")
-	fmt.Println("  --logfile          path/to/the logfile                                                    default `aspace-export.log`")
 	fmt.Println("  --environment      environment key in config file of the instance to export from          default `dev`")
+	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports`")
+	fmt.Println("  --format           the export format either `ead` or `marc`                               default `ead`")
+	fmt.Println("  --include-unpublished-notes		inlude unpublished notes in exports					 default `false`")
+	fmt.Println("  --include-unpublished-resources	inlude unpublished resources in exports				 default `false`")
+	fmt.Println("  --logfile          path/to/the logfile                                                    default `aspace-export-yyyymmdd.log`")
+	fmt.Println("  --reformat         tab reformat ead xml files                                             default `false`")
 	fmt.Println("  --repository       ID of the repository to be exported, `0` will export all repositories  default 0 -- ")
 	fmt.Println("  --resource         ID of the resource to be exported, `0` will export all resources  	 default 0 -- ")
 	fmt.Println("  --timeout          client timout in seconds                                               default 20")
-	fmt.Println("  --format           the export format eitherb`ead` or `marc`                               default `ead`")
 	fmt.Println("  --workers          number of concurrent export workers to create                          default 8")
 	fmt.Println("  --validate         validate exported finding aids against ead2002 schema                  default `false`")
-	fmt.Println("  --reformat         tab reformat ead xml files                                             default `false`")
-	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports`")
-	fmt.Println("  --help             print this help screen")
 	fmt.Println("  --version          print the version and version of client version")
+	fmt.Println("  --help             print this help screen")
 }
 
 func main() {
@@ -86,7 +90,7 @@ func main() {
 
 	//check for the version flag
 	if version == true {
-		fmt.Printf("aspace-export %s, go-aspace %s\n", appVersion, aspace.LibraryVersion)
+		fmt.Printf("aspace-export %s, using go-aspace %s\n", appVersion, aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
@@ -221,7 +225,7 @@ func createExportDirectories() {
 			log.Println("INFO failures directory exists, skipping creation of", failureDir)
 		}
 
-		if unpublished == true {
+		if unpublishedResources == true {
 			if _, err := os.Stat(unpublishedDir); os.IsNotExist(err) {
 				innerErr := os.Mkdir(unpublishedDir, 0777)
 				if innerErr != nil {
