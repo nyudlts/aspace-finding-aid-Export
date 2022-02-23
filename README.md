@@ -44,7 +44,6 @@ aspace-exports<br>
 Command-Line Arguments
 ----------------------
 --config, path/to/go-aspace.yml configuration file, required<br>
-
 --environment, environment key in config file of the instance to export from, default: `dev`<br>
 --export-location, path/to/the location to export resources, default: `./aspace-exports`<br>
 --format, format of export: ead or marc, default: `ead`<br>
@@ -59,7 +58,7 @@ Command-Line Arguments
 --workers, number of concurrent export workers to create, default: 8<br>
 --help, print this help screen<br>
 
-Package
+Package Distrobution
 -----------------
 Pre-requisite: libxml2<br>
 $ make package VERSION="release version" OS="osx,linux"
