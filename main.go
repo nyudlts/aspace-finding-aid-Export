@@ -11,8 +11,11 @@ import (
 	"time"
 )
 
+const appVersion = "v0.5.1b"
+
 var (
-	logfile              string
+	logfile              = "aspace-export"
+	reportFile           string
 	client               *aspace.ASClient
 	workers              int
 	config               string
@@ -31,7 +34,8 @@ var (
 	format               string
 	unpublishedNotes     bool
 	unpublishedResources bool
-	appVersion           = "v0.5.0b"
+	startTime            time.Time
+	executionTime        time.Duration
 )
 
 type ResourceInfo struct {
@@ -42,7 +46,6 @@ type ResourceInfo struct {
 
 func init() {
 	flag.StringVar(&config, "config", "", "location of go-aspace configuration file")
-	flag.StringVar(&logfile, "logfile", "aspace-export", "location of the log file to be written")
 	flag.StringVar(&environment, "environment", "dev", "environment key of instance to export from")
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
 	flag.IntVar(&resource, "resource", 0, "ID of a single resource to be exported")
@@ -65,9 +68,8 @@ func printHelp() {
 	fmt.Println("  --environment      environment key in config file of the instance to export from          default `dev`")
 	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports`")
 	fmt.Println("  --format           the export format either `ead` or `marc`                               default `ead`")
-	fmt.Println("  --include-unpublished-notes		inlude unpublished notes in exports					 default `false`")
-	fmt.Println("  --include-unpublished-resources	inlude unpublished resources in exports				 default `false`")
-	fmt.Println("  --logfile          path/to/the logfile                                                    default `aspace-export-yyyymmdd.log`")
+	fmt.Println("  --include-unpublished-notes		include unpublished notes in exports					 default `false`")
+	fmt.Println("  --include-unpublished-resources	include unpublished resources in exports				 default `false`")
 	fmt.Println("  --reformat         tab reformat ead xml files                                             default `false`")
 	fmt.Println("  --repository       ID of the repository to be exported, `0` will export all repositories  default 0 -- ")
 	fmt.Println("  --resource         ID of the resource to be exported, `0` will export all resources  	 default 0 -- ")
@@ -79,6 +81,7 @@ func printHelp() {
 }
 
 func main() {
+	startTime = time.Now()
 	//parse the flags
 	flag.Parse()
 
@@ -98,7 +101,7 @@ func main() {
 	t := time.Now()
 	tf := t.Format("20060102")
 	logfile = logfile + "-" + tf + ".log"
-	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE, 0777)
+	f, err := os.Create(logfile)
 	if err != nil {
 		panic(err)
 	}
@@ -138,7 +141,7 @@ func main() {
 	createExportDirectories()
 
 	//export Resources
-	fmt.Printf("Processing %d resources\n", len(resourceInfo))
+	fmt.Printf("\nProcessing %d resources\n", len(resourceInfo))
 	exportResources()
 
 	//clean up directories
@@ -187,7 +190,7 @@ func createExportDirectories() {
 
 		repositoryDir := filepath.Join(workDir, slug)
 		exportDir := filepath.Join(repositoryDir, "exports")
-		failureDir := filepath.Join(repositoryDir, "failures")
+		failureDir := filepath.Join(repositoryDir, "invalid")
 		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
 
 		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
@@ -318,6 +321,13 @@ func cleanup() {
 	//move the logfile to the workdir
 	newLoc := filepath.Join(workDir, logfile)
 	err = os.Rename(logfile, newLoc)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	//move the reportFile to the workdir
+	newLoc = filepath.Join(workDir, reportFile)
+	err = os.Rename(reportFile, newLoc)
 	if err != nil {
 		fmt.Println(err.Error())
 	}

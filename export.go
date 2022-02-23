@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/nyudlts/go-aspace"
 	"io/ioutil"
@@ -56,26 +57,60 @@ func exportResources() {
 		}
 	}
 
+	executionTime = time.Since(startTime)
 	//reporting
-	fmt.Printf("\n%d Resources proccessed:\n", len(results))
-	fmt.Printf("  %d Successful exports\n", len(successes))
-	fmt.Printf("  %d Skipped resources\n", len(skipped))
+	t := time.Now()
+	tf := t.Format("20060102")
+	reportFile = filepath.Join("aspace-export-" + tf + "-report.txt")
+	report, err := os.Create(reportFile)
+	if err != nil {
+		log.Printf(err.Error())
+	}
 
-	fmt.Printf("  %d Exports with warnings\n", len(warnings))
+	defer report.Close()
+	writer := bufio.NewWriter(report)
+	fmt.Println("")
+	msg := fmt.Sprintf("ASPACE-EXPORT REPORT\n====================\n")
+	writer.WriteString(msg)
+	fmt.Printf(msg)
+	msg = fmt.Sprintf("Execution Time: %v", executionTime)
+	writer.WriteString(msg)
+	fmt.Printf(msg)
+	msg = fmt.Sprintf("\n%d Resources proccessed:\n", len(results))
+	writer.WriteString(msg)
+	fmt.Printf(msg)
+	msg = fmt.Sprintf("  %d Successful exports\n", len(successes))
+	writer.WriteString(msg)
+	fmt.Printf(msg)
+	msg = fmt.Sprintf("  %d Skipped resources\n", len(skipped))
+	writer.WriteString(msg)
+	fmt.Printf(msg)
+
+	msg = fmt.Sprintf("  %d Exports with warnings\n", len(warnings))
+	writer.WriteString(msg)
+	fmt.Printf(msg)
+
 	if len(warnings) > 0 {
 		for _, w := range warnings {
 			w.Error = strings.ReplaceAll(w.Error, "\n", " ")
-			fmt.Println("    ", w)
+			msg = fmt.Sprintf("    %v\n", w)
+			writer.WriteString(msg)
+			fmt.Printf(msg)
 		}
 	}
 
-	fmt.Printf("  %d Errors Encountered\n", len(errors))
+	msg = fmt.Sprintf("  %d Errors Encountered\n", len(errors))
+	writer.WriteString(msg)
+	fmt.Printf(msg)
 	if len(errors) > 0 {
 		for _, e := range errors {
 			e.Error = strings.ReplaceAll(e.Error, "\n", " ")
-			fmt.Println("    ", e)
+			msg = fmt.Sprintf("    %v\n", e)
+			writer.WriteString(msg)
+			fmt.Printf(msg)
 		}
 	}
+	writer.Flush()
 }
 
 func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
@@ -114,6 +149,8 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 			panic(fmt.Sprintf("aspace-export does not currently support %s as a format", format))
 		}
 	}
+
+	fmt.Printf("  * Worker %d finished processed %d resources\n", workerID, len(results))
 	resultChannel <- results
 }
 
@@ -146,9 +183,9 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 		err = aspace.ValidateMARC(marcBytes)
 		if err != nil {
 			warning = true
-			warningType = "failed MARC21 validation, writing to failures directory"
+			warningType = "failed MARC21 validation, writing to invalid directory"
 			log.Printf("WARNING worker %d resource %s - %s %s %s", workerID, res.URI, res.EADID, warningType, err.Error())
-			marcPath = filepath.Join(workDir, info.RepoSlug, "failures", marcFilename)
+			marcPath = filepath.Join(workDir, info.RepoSlug, "invalid", marcFilename)
 		}
 	}
 
@@ -188,9 +225,9 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 		err = aspace.ValidateEAD(eadBytes)
 		if err != nil {
 			warning = true
-			warningType = "failed EAD2002 validation, writing to failures directory"
+			warningType = "failed EAD2002 validation, writing to invalid directory"
 			log.Printf("WARNING worker %d resource %s - %s %s", workerID, res.URI, res.EADID, warningType)
-			outputFile = filepath.Join(workDir, info.RepoSlug, "failures", eadFilename)
+			outputFile = filepath.Join(workDir, info.RepoSlug, "invalid", eadFilename)
 		}
 	}
 
