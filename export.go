@@ -118,12 +118,11 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
 	var results = []ExportResult{}
 
-	counter := 0
 	//loop through the chunk
-	for _, rInfo := range resourceInfoChunk {
-		counter = counter + 1
-		if counter > 1 && (counter-1)%50 == 0 {
-			fmt.Printf("  * Worker %d has completed %d exports\n", workerID, counter-1)
+	for i, rInfo := range resourceInfoChunk {
+
+		if i > 1 && (i-1)%50 == 0 {
+			fmt.Printf("  * Worker %d has completed %d exports\n", workerID, i-1)
 		}
 		//get the resource object
 		res, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
@@ -150,7 +149,7 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 		}
 	}
 
-	fmt.Printf("  * Worker %d finished processed %d resources\n", workerID, len(results))
+	fmt.Printf("  * Worker %d finished, processed %d resources\n", workerID, len(results))
 	resultChannel <- results
 }
 
