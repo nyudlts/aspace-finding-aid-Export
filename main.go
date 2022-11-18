@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const appVersion = "v0.5.1b"
+const appVersion = "v1.0.0"
 
 var (
 	logfile              = "aspace-export"
@@ -46,7 +46,7 @@ type ResourceInfo struct {
 
 func init() {
 	flag.StringVar(&config, "config", "", "location of go-aspace configuration file")
-	flag.StringVar(&environment, "environment", "dev", "environment key of instance to export from")
+	flag.StringVar(&environment, "environment", "", "environment key of instance to export from")
 	flag.IntVar(&repository, "repository", 0, "ID of repository to be exported, leave blank to export all repositories")
 	flag.IntVar(&resource, "resource", 0, "ID of a single resource to be exported")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
@@ -56,7 +56,7 @@ func init() {
 	flag.BoolVar(&help, "help", false, "display the help message")
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
-	flag.StringVar(&format, "format", "ead", "format of export: ead or marc")
+	flag.StringVar(&format, "format", "", "format of export: ead or marc")
 	flag.BoolVar(&unpublishedNotes, "include-unpublished-notes", false, "include unpublished notes")
 	flag.BoolVar(&unpublishedResources, "include-unpublished-resources", false, "include unpublished resources")
 }
@@ -64,10 +64,10 @@ func init() {
 func printHelp() {
 	fmt.Println("usage: aspace-export [options]")
 	fmt.Println("options:")
-	fmt.Println("  --config           path/to/the go-aspace configuration file                               default `go-aspace.yml`")
-	fmt.Println("  --environment      environment key in config file of the instance to export from          default `dev`")
-	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports`")
-	fmt.Println("  --format           the export format either `ead` or `marc`                               default `ead`")
+	fmt.Println("  --config           path/to/the go-aspace configuration file                               mandatory")
+	fmt.Println("  --environment      environment key in config file of the instance to run export against   mandatory")
+	fmt.Println("  --format           the export format either `ead` or `marc								 mandatory")
+	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports-[timestamp]`")
 	fmt.Println("  --include-unpublished-notes		include unpublished notes in exports					 default `false`")
 	fmt.Println("  --include-unpublished-resources	include unpublished resources in exports				 default `false`")
 	fmt.Println("  --reformat         tab reformat ead xml files                                             default `false`")
@@ -97,26 +97,31 @@ func main() {
 		os.Exit(0)
 	}
 
+	fmt.Printf("\n-- aspace-export %s --\n\n", appVersion)
+
 	//create a log file
 	t := time.Now()
-	tf := t.Format("20060102")
+	tf := t.Format("20060102-050403")
 	logfile = logfile + "-" + tf + ".log"
 	f, err := os.Create(logfile)
 	if err != nil {
-		panic(err)
+		fmt.Printf("[FATAL] could not create logfile %s", f.Name())
+		log.Printf("[FATAL] could not create logfile %s", f.Name())
+		printHelp()
 	}
+
 	defer f.Close()
 	log.SetOutput(f)
-	log.Printf("INFO Running go-aspace-export")
+	log.Printf("[INFO] logging to %s\n", logfile)
+	fmt.Printf("[INFO] logging to %s\n", logfile)
 
 	//check critical flags
 	err = checkFlags()
 	if err != nil {
-		fmt.Println("FATAL error:", err.Error())
-		log.Fatalln("FATAL", err)
+		fmt.Printf("[FATAL] %s\n\n", err.Error())
+		log.Println("[FATAL]", err.Error())
+		printHelp()
 	}
-
-	fmt.Printf("Running go-aspace %s exporter, logging to %s\n", format, logfile)
 
 	//get a go-aspace api client
 	log.Println("INFO Creating go-aspace client")
@@ -163,12 +168,16 @@ func checkFlags() error {
 		return fmt.Errorf("go-aspace config file does not exist at %s", config)
 	}
 
+	if environment == "" {
+		return fmt.Errorf("environment to run export against is mandatory, set the --env option")
+	}
+
 	if format != "marc" && format != "ead" {
-		return fmt.Errorf("--format must be either ead or marc")
+		return fmt.Errorf("format must be either `ead` or `marc`")
 	}
 
 	if resource != 0 && repository == 0 {
-		return fmt.Errorf("A single resource can not be exported if the repository is not specified, include the --repository flag.")
+		return fmt.Errorf("a single resource can not be exported if the repository is not specified, include the --repository flag when aspace export is run")
 	}
 
 	return nil
