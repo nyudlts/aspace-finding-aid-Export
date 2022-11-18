@@ -1,4 +1,4 @@
-module github.com/dmnyu/aspace-fa-export
+module github.com/nyudlts/aspace-export
 
 go 1.19
 

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const appVersion = "v1.0.0"
+const appVersion = "v1.0.0b"
 
 var (
 	logfile              = "aspace-export"
@@ -18,7 +18,6 @@ var (
 	workers              int
 	config               string
 	environment          string
-	err                  error
 	repository           int
 	resource             int
 	timeout              int
@@ -35,6 +34,7 @@ var (
 	startTime            time.Time
 	executionTime        time.Duration
 	debug                bool
+	formattedTime        string
 )
 
 type ResourceInfo struct {
@@ -83,6 +83,7 @@ func printHelp() {
 
 func main() {
 	startTime = time.Now()
+	formattedTime = startTime.Format("20060102-050403")
 	//parse the flags
 	flag.Parse()
 
@@ -102,9 +103,8 @@ func main() {
 	fmt.Printf("\n-- aspace-export %s --\n\n", appVersion)
 
 	//create a log file
-	t := time.Now()
-	tf := t.Format("20060102-050403")
-	logfile = logfile + "-" + tf + ".log"
+
+	logfile = logfile + "-" + formattedTime + ".log"
 
 	f, err := os.Create(logfile)
 	if err != nil {
@@ -151,8 +151,9 @@ func main() {
 	}
 	printAndLog(fmt.Sprintf("%d resources returned from ArchivesSpace", len(resourceInfo)), INFO)
 
-	//create work direcoty
-	err = createWorkDirectory()
+	//create work directory
+	workDir = fmt.Sprintf("aspace-exports-%s", formattedTime)
+	err = createWorkDirectory(workDir)
 	if err != nil {
 		printAndLog(err.Error(), FATAL)
 		os.Exit(6)
@@ -160,14 +161,25 @@ func main() {
 	printAndLog(fmt.Sprintf("working directory created at %s", workDir), INFO)
 
 	//Create the repository export and failure directories
-	createExportDirectories()
+	err = createExportDirectories(workDir)
+	if err != nil {
+		printAndLog(err.Error(), FATAL)
+		os.Exit(6)
+	}
 
 	//export Resources
 	fmt.Printf("\nProcessing %d resources\n", len(resourceInfo))
-	exportResources()
+	err = exportResources(workDir)
+	if err != nil {
+		printAndLog(err.Error(), FATAL)
+		os.Exit(7)
+	}
 
 	//clean up directories
-	cleanup()
+	err = cleanup()
+	if err != nil {
+		printAndLog(err.Error(), WARNING)
+	}
 
 	//exit
 	printAndLog("aspace-export process complete, exiting", INFO)

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/nyudlts/go-aspace"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -20,8 +19,10 @@ type ExportResult struct {
 }
 
 var numSkipped = 0
+var wdPath string
 
-func exportResources() {
+func exportResources(workPathDir string) error {
+	wdPath = workPathDir
 	resourceChunks := chunkResources()
 	resultChannel := make(chan []ExportResult)
 
@@ -59,12 +60,10 @@ func exportResources() {
 
 	executionTime = time.Since(startTime)
 	//reporting
-	t := time.Now()
-	tf := t.Format("20060102")
-	reportFile = filepath.Join("aspace-export-" + tf + "-report.txt")
+	reportFile = filepath.Join("aspace-export-" + formattedTime + "-report.txt")
 	report, err := os.Create(reportFile)
 	if err != nil {
-		log.Printf(err.Error())
+		return err
 	}
 
 	defer report.Close()
@@ -111,30 +110,31 @@ func exportResources() {
 		}
 	}
 	writer.Flush()
+
+	return nil
 }
 
 func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
-	fmt.Println("  * Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
-	log.Println("INFO Starting worker", workerID, "processing", len(resourceInfoChunk), "resources")
+	printAndLog(fmt.Sprintf("Starting worker %d processing %d resources", workerID, len(resourceInfoChunk)), INFO)
 	var results = []ExportResult{}
 
 	//loop through the chunk
 	for i, rInfo := range resourceInfoChunk {
 
 		if i > 1 && (i-1)%50 == 0 {
-			fmt.Printf("  * Worker %d has completed %d exports\n", workerID, i-1)
+			printOnly(fmt.Sprintf("Worker %d has completed %d exports\n", workerID, i-1), INFO)
 		}
 		//get the resource object
 		res, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
 		if err != nil {
 			results = append(results, ExportResult{Status: "ERROR", URI: "", Error: err.Error()})
-			log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
+			printAndLog(fmt.Sprintf("worker %d could not retrieve resource %s", workerID, res.URI), ERROR)
 			continue
 		}
 
 		//check if the resource is set to be published
 		if unpublishedResources == false && res.Publish != true {
-			log.Printf("INFO worker %d resource %s not set to publish, skipping", workerID, res.URI)
+			logOnly(fmt.Sprintf("worker %d - resource %s not set to publish, skipping", workerID, res.URI), INFO)
 			numSkipped = numSkipped + 1
 			results = append(results, ExportResult{Status: "SKIPPED", URI: res.URI, Error: ""})
 			continue
@@ -144,12 +144,10 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 			results = append(results, exportMarc(rInfo, res, workerID))
 		} else if format == "ead" {
 			results = append(results, exportEAD(rInfo, res, workerID))
-		} else {
-			panic(fmt.Sprintf("aspace-export does not currently support %s as a format", format))
 		}
 	}
 
-	fmt.Printf("  * Worker %d finished, processed %d resources\n", workerID, len(results))
+	printAndLog(fmt.Sprintf("Worker %d finished, processed %d resources\n", workerID, len(results)), INFO)
 	resultChannel <- results
 }
 
@@ -158,14 +156,13 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 	//get the marc record
 	marcBytes, err := client.GetMARCAsByteArray(info.RepoID, info.ResourceID, unpublishedNotes)
 	if err != nil {
-		log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
+		logOnly(fmt.Sprintf("worker %d - could not retrieve resource %s", workerID, res.URI), ERROR)
 		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
 	}
 
 	//create the output filename
-	t := time.Now()
-	tf := t.Format("20060102")
-	marcFilename := strings.ToLower(MergeIDs(res) + "_" + tf + ".xml")
+	date := startTime.Format("20060102")
+	marcFilename := strings.ToLower(MergeIDs(res) + "_" + date + ".xml")
 
 	//set the location to write the marc record
 	var marcPath string
@@ -183,24 +180,24 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 		if err != nil {
 			warning = true
 			warningType = "failed MARC21 validation, writing to invalid directory"
-			log.Printf("WARNING worker %d resource %s - %s %s %s", workerID, res.URI, res.EADID, warningType, err.Error())
+			logOnly(fmt.Sprintf("worker %d resource %s - %s %s %s", workerID, res.URI, res.EADID, warningType, err.Error()), WARNING)
 			marcPath = filepath.Join(workDir, info.RepoSlug, "invalid", marcFilename)
 		}
 	}
 
 	//write the marc file
-	err = ioutil.WriteFile(marcPath, marcBytes, 0777)
+	err = os.WriteFile(marcPath, marcBytes, 0777)
 	if err != nil {
-		log.Printf("INFO worker %d could not write the marc record %s", workerID, res.URI)
+		logOnly(fmt.Sprintf("worker %d - could not write the marc record %s", workerID, res.URI), ERROR)
 		return ExportResult{Status: "ERROR", URI: "", Error: err.Error()}
 	}
 
 	//return the result
 	if warning == true {
-		log.Printf("INFO worker %d exported resource %s - %s with warning", workerID, res.URI, marcFilename)
+		logOnly(fmt.Sprintf("worker %d - exported resource %s - %s with warning", workerID, res.URI, marcFilename), WARNING)
 		return ExportResult{Status: "WARNING", URI: res.URI, Error: warningType}
 	}
-	log.Printf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID)
+	logOnly(fmt.Sprintf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID), INFO)
 	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
 }
 
@@ -209,7 +206,7 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 	//get the ead as bytes
 	eadBytes, err := client.GetEADAsByteArray(info.RepoID, info.ResourceID, unpublishedNotes)
 	if err != nil {
-		log.Printf("INFO worker %d could not retrieve resource %s", workerID, res.URI)
+		logOnly(fmt.Sprintf("INFO worker %d could not retrieve resource %s", workerID, res.URI), ERROR)
 		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
 	}
 
@@ -225,15 +222,15 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 		if err != nil {
 			warning = true
 			warningType = "failed EAD2002 validation, writing to invalid directory"
-			log.Printf("WARNING worker %d resource %s - %s %s", workerID, res.URI, res.EADID, warningType)
+			logOnly(fmt.Sprintf("worker %d - resource %s - %s %s", workerID, res.URI, res.EADID, warningType), WARNING)
 			outputFile = filepath.Join(workDir, info.RepoSlug, "invalid", eadFilename)
 		}
 	}
 
 	//create the output file
-	err = ioutil.WriteFile(outputFile, eadBytes, 0777)
+	err = os.WriteFile(outputFile, eadBytes, 0777)
 	if err != nil {
-		log.Printf("INFO worker %d could not write the ead file %s", workerID, res.URI)
+		logOnly(fmt.Sprintf("worker %d - could not write the ead file %s", workerID, res.URI), ERROR)
 		return ExportResult{Status: "ERROR", URI: "", Error: err.Error()}
 	}
 
@@ -241,17 +238,17 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 	if reformat == true {
 		err = tabReformatXML(outputFile)
 		if err != nil {
-			log.Printf("WARNING worker %d could not reformat %s", workerID, outputFile)
+			logOnly(fmt.Sprintf("worker %d - could not reformat %s", workerID, outputFile), WARNING)
 		}
 	}
 
 	//return the result
 
 	if warning == true {
-		log.Printf("INFO worker %d exported resource %s - %s with warning", workerID, res.URI, eadFilename)
+		logOnly(fmt.Sprintf("worker %d exported resource %s - %s with warning", workerID, res.URI, eadFilename), WARNING)
 		return ExportResult{Status: "WARNING", URI: res.URI, Error: warningType}
 	}
-	log.Printf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID)
+	logOnly(fmt.Sprintf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID), INFO)
 	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
 }
 
@@ -287,7 +284,7 @@ func tabReformatXML(path string) error {
 	}
 
 	//rewrite the file
-	err = ioutil.WriteFile(path, reformattedBytes, 0644)
+	err = os.WriteFile(path, reformattedBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("could not write reformated bytes to %s", path)
 	}
