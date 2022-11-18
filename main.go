@@ -4,10 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/nyudlts/go-aspace"
-	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -36,6 +34,7 @@ var (
 	unpublishedResources bool
 	startTime            time.Time
 	executionTime        time.Duration
+	debug                bool
 )
 
 type ResourceInfo struct {
@@ -59,23 +58,25 @@ func init() {
 	flag.StringVar(&format, "format", "", "format of export: ead or marc")
 	flag.BoolVar(&unpublishedNotes, "include-unpublished-notes", false, "include unpublished notes")
 	flag.BoolVar(&unpublishedResources, "include-unpublished-resources", false, "include unpublished resources")
+	flag.BoolVar(&debug, "debug", false, "")
 }
 
 func printHelp() {
 	fmt.Println("usage: aspace-export [options]")
 	fmt.Println("options:")
-	fmt.Println("  --config           path/to/the go-aspace configuration file                               mandatory")
-	fmt.Println("  --environment      environment key in config file of the instance to run export against   mandatory")
-	fmt.Println("  --format           the export format either `ead` or `marc								 mandatory")
-	fmt.Println("  --export-location  path/to/the location to export finding aids                            default `aspace-exports-[timestamp]`")
-	fmt.Println("  --include-unpublished-notes		include unpublished notes in exports					 default `false`")
-	fmt.Println("  --include-unpublished-resources	include unpublished resources in exports				 default `false`")
-	fmt.Println("  --reformat         tab reformat ead xml files                                             default `false`")
-	fmt.Println("  --repository       ID of the repository to be exported, `0` will export all repositories  default 0 -- ")
-	fmt.Println("  --resource         ID of the resource to be exported, `0` will export all resources  	 default 0 -- ")
-	fmt.Println("  --timeout          client timout in seconds                                               default 20")
-	fmt.Println("  --workers          number of concurrent export workers to create                          default 8")
-	fmt.Println("  --validate         validate exported finding aids against ead2002 schema                  default `false`")
+	fmt.Println("  --config           path/to/the go-aspace configuration file					mandatory")
+	fmt.Println("  --environment      environment key in config file of the instance to run export against   	mandatory")
+	fmt.Println("  --format           the export format either `ead` or `marc					mandatory")
+	fmt.Println("  --export-location  path/to/the location to export finding aids                            	default `aspace-exports-[timestamp]`")
+	fmt.Println("  --include-unpublished-notes		include unpublished notes in exports			default `false`")
+	fmt.Println("  --include-unpublished-resources	include unpublished resources in exports		default `false`")
+	fmt.Println("  --reformat         tab reformat ead xml files							default `false`")
+	fmt.Println("  --repository       ID of the repository to be exported, `0` will export all repositories	default `0` ")
+	fmt.Println("  --resource         ID of the resource to be exported, `0` will export all resources		default `0` ")
+	fmt.Println("  --timeout          client timout in seconds							default 20")
+	fmt.Println("  --workers          number of concurrent export workers to create				default 8")
+	fmt.Println("  --validate         validate exported finding aids against ead2002 schema			default `false`")
+	fmt.Println("  --debug")
 	fmt.Println("  --version          print the version and version of client version")
 	fmt.Println("  --help             print this help screen")
 }
@@ -85,62 +86,78 @@ func main() {
 	//parse the flags
 	flag.Parse()
 
-	//check for the help message flag
+	//check for the help message flag `--help`
 	if help == true {
 		printHelp()
 		os.Exit(0)
 	}
 
-	//check for the version flag
+	//check for the version flag `--version`
 	if version == true {
 		fmt.Printf("aspace-export %s, using go-aspace %s\n", appVersion, aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
+	//starting the application
 	fmt.Printf("\n-- aspace-export %s --\n\n", appVersion)
 
 	//create a log file
 	t := time.Now()
 	tf := t.Format("20060102-050403")
 	logfile = logfile + "-" + tf + ".log"
+
 	f, err := os.Create(logfile)
 	if err != nil {
-		fmt.Printf("[FATAL] could not create logfile %s", f.Name())
-		log.Printf("[FATAL] could not create logfile %s", f.Name())
+		printAndLog(err.Error(), FATAL)
 		printHelp()
+		os.Exit(1)
 	}
 
 	defer f.Close()
 	log.SetOutput(f)
-	log.Printf("[INFO] logging to %s\n", logfile)
-	fmt.Printf("[INFO] logging to %s\n", logfile)
+	printAndLog(fmt.Sprintf("logging to %s", logfile), INFO)
 
 	//check critical flags
 	err = checkFlags()
 	if err != nil {
-		fmt.Printf("[FATAL] %s\n\n", err.Error())
-		log.Println("[FATAL]", err.Error())
+		printAndLog(err.Error(), FATAL)
 		printHelp()
+		os.Exit(2)
 	}
 
 	//get a go-aspace api client
 	log.Println("INFO Creating go-aspace client")
 	client, err = aspace.NewClient(config, environment, timeout)
 	if err != nil {
-		log.Fatalln("FATAL Could not get create an aspace client", err.Error())
+		printAndLog(fmt.Sprintf("failed to create a go-aspace client %s", err.Error()), FATAL)
+		os.Exit(3)
 	} else {
-		log.Println("INFO go-aspace client created, using go-aspace", aspace.LibraryVersion)
+		printAndLog(fmt.Sprintf("go-aspace client created, using go-aspace %s", aspace.LibraryVersion), INFO)
 	}
 
 	//get a map of repositories to be exported
-	repositoryMap = getRepositoryMap()
-	log.Printf("INFO found %d repositories", len(repositoryMap))
-	//get a slice of resourceInfo
-	resourceInfo = []ResourceInfo{}
-	getResourceIDs()
+	repositoryMap, err := getRepositoryMap()
+	if err != nil {
+		printAndLog(err.Error(), FATAL)
+		os.Exit(4)
+	}
+	printAndLog(fmt.Sprintf("%d repositories returned from ArchivesSpace", len(repositoryMap)), INFO)
 
-	//setup export directories
-	createWorkDirectory()
+	//get a slice of resourceInfo
+	resourceInfo, err = getResourceIDs(repositoryMap)
+	if err != nil {
+		printAndLog(err.Error(), FATAL)
+		os.Exit(5)
+	}
+	printAndLog(fmt.Sprintf("%d resources returned from ArchivesSpace", len(resourceInfo)), INFO)
+
+	//create work direcoty
+	err = createWorkDirectory()
+	if err != nil {
+		printAndLog(err.Error(), FATAL)
+		os.Exit(6)
+	}
+	printAndLog(fmt.Sprintf("working directory created at %s", workDir), INFO)
 
 	//Create the repository export and failure directories
 	createExportDirectories()
@@ -153,192 +170,6 @@ func main() {
 	cleanup()
 
 	//exit
-	log.Println("INFO process complete, exiting.")
-	fmt.Println("\naspace-export complete, exiting.")
+	printAndLog("aspace-export process complete, exiting", INFO)
 	os.Exit(0)
-}
-
-func checkFlags() error {
-	//check if the config file exists
-	if config == "" {
-		return fmt.Errorf("location of go-aspace config file is mandatory, set the --config option")
-	}
-
-	if _, err := os.Stat(config); os.IsNotExist(err) {
-		return fmt.Errorf("go-aspace config file does not exist at %s", config)
-	}
-
-	if environment == "" {
-		return fmt.Errorf("environment to run export against is mandatory, set the --env option")
-	}
-
-	if format != "marc" && format != "ead" {
-		return fmt.Errorf("format must be either `ead` or `marc`")
-	}
-
-	if resource != 0 && repository == 0 {
-		return fmt.Errorf("a single resource can not be exported if the repository is not specified, include the --repository flag when aspace export is run")
-	}
-
-	return nil
-}
-
-func createWorkDirectory() {
-	if _, err = os.Stat(workDir); os.IsNotExist(err) {
-		innerErr := os.Mkdir(workDir, 0777)
-		if innerErr != nil {
-			log.Fatalf("FATAL could not create an work directory at %s", workDir)
-		}
-	} else {
-		log.Println("INFO work directory exists, skipping creation", workDir)
-	}
-}
-
-func createExportDirectories() {
-	for slug := range repositoryMap {
-
-		repositoryDir := filepath.Join(workDir, slug)
-		exportDir := filepath.Join(repositoryDir, "exports")
-		failureDir := filepath.Join(repositoryDir, "invalid")
-		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
-
-		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(repositoryDir, 0755)
-			if innerErr != nil {
-				log.Fatalf("FATAL could not create a repository directory at %s", repositoryDir)
-			} else {
-				log.Println("INFO created repository directory", repositoryDir)
-			}
-		} else {
-			log.Println("INFO repository directory exists, skipping creation of", repositoryDir)
-		}
-
-		//create the repository export directory
-		if _, err := os.Stat(exportDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(exportDir, 0777)
-			if innerErr != nil {
-				log.Fatalf("FATAL could not create an exports directory at %s", exportDir)
-			} else {
-				log.Println("INFO created exports directory", exportDir)
-			}
-		} else {
-			log.Println("INFO exports directory exists, skipping creation of", exportDir)
-		}
-
-		//create the repository failure directory
-		if _, err := os.Stat(failureDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(failureDir, 0777)
-			if innerErr != nil {
-				log.Fatalf("FATAL could not create a failure directory at %s", failureDir)
-			} else {
-				log.Println("INFO created failures directory", failureDir)
-			}
-		} else {
-			log.Println("INFO failures directory exists, skipping creation of", failureDir)
-		}
-
-		if unpublishedResources == true {
-			if _, err := os.Stat(unpublishedDir); os.IsNotExist(err) {
-				innerErr := os.Mkdir(unpublishedDir, 0777)
-				if innerErr != nil {
-					log.Fatalf("FATAL could not create a unpublished directory at %s", unpublishedDir)
-				} else {
-					log.Println("INFO created unpublished directory", unpublishedDir)
-				}
-			} else {
-				log.Println("INFO unpublished directory exists, skipping creation of", unpublishedDir)
-			}
-		}
-	}
-}
-
-func getRepositoryMap() map[string]int {
-	repositories := make(map[string]int)
-
-	if repository != 0 {
-		//export a single repository
-		repositoryObject, err := client.GetRepository(repository)
-		if err != nil {
-			fmt.Printf("Repository id %d does not exist in %s instance\n", repository, environment)
-			log.Fatalf("FATAL %s", err.Error())
-		}
-		repositories[repositoryObject.Slug] = repository
-	} else {
-		//export all repositories
-		repositoryIds, err := client.GetRepositories()
-		if err != nil {
-			log.Fatalf("FATAL %s", err.Error())
-		}
-		for _, r := range repositoryIds {
-			repositoryObject, err := client.GetRepository(r)
-			if err != nil {
-				log.Fatalf("FATAL %s", err.Error())
-			}
-			repositories[repositoryObject.Slug] = r
-		}
-	}
-	return repositories
-}
-
-func getResourceIDs() {
-
-	for repositorySlug, repositoryID := range repositoryMap {
-		resourceIDs, err := client.GetResourceIDs(repositoryID)
-		if err != nil {
-			log.Fatalf("FATAL %s", err.Error())
-		}
-		if resource != 0 {
-			resourceInfo = append(resourceInfo, ResourceInfo{
-				RepoID:     repository,
-				RepoSlug:   repositorySlug,
-				ResourceID: resource,
-			})
-			continue
-		}
-		for _, resourceID := range resourceIDs {
-			resourceInfo = append(resourceInfo, ResourceInfo{
-				RepoID:     repositoryID,
-				RepoSlug:   repositorySlug,
-				ResourceID: resourceID,
-			})
-		}
-	}
-}
-
-func cleanup() {
-	//remove any empty directories
-	err := filepath.Walk(workDir, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			f, err := os.Open(path)
-			if err != nil {
-				log.Println("ERROR ", err.Error())
-			} else {
-				defer f.Close()
-				_, err = f.Readdirnames(1)
-				if err == io.EOF {
-					log.Printf("INFO removing empty directory at: %s", path)
-					os.Remove(path)
-				}
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	//move the logfile to the workdir
-	newLoc := filepath.Join(workDir, logfile)
-	err = os.Rename(logfile, newLoc)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	//move the reportFile to the workdir
-	newLoc = filepath.Join(workDir, reportFile)
-	err = os.Rename(reportFile, newLoc)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
 }
