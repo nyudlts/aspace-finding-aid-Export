@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	export "github.com/nyudlts/aspace-export/aspace_xport"
 	"github.com/nyudlts/go-aspace"
 	"log"
 	"os"
@@ -23,7 +24,7 @@ var (
 	timeout              int
 	workDir              string
 	repositoryMap        map[string]int
-	resourceInfo         []ResourceInfo
+	resourceInfo         []export.ResourceInfo
 	validate             bool
 	help                 bool
 	version              bool
@@ -36,12 +37,6 @@ var (
 	debug                bool
 	formattedTime        string
 )
-
-type ResourceInfo struct {
-	RepoID     int
-	RepoSlug   string
-	ResourceID int
-}
 
 func init() {
 	flag.StringVar(&config, "config", "", "location of go-aspace configuration file")
@@ -82,10 +77,6 @@ func printHelp() {
 }
 
 func main() {
-	startTime = time.Now()
-	formattedTime = startTime.Format("20060102-050403")
-	//parse the flags
-	flag.Parse()
 
 	//check for the help message flag `--help`
 	if help == true {
@@ -99,6 +90,14 @@ func main() {
 		os.Exit(0)
 	}
 
+	startTime = time.Now()
+	formattedTime = startTime.Format("20060102-050403")
+	//parse the flags
+	flag.Parse()
+
+	//set debug bool
+	export.SetDebug(debug)
+
 	//starting the application
 	fmt.Printf("\n-- aspace-export %s --\n\n", appVersion)
 
@@ -108,80 +107,81 @@ func main() {
 
 	f, err := os.Create(logfile)
 	if err != nil {
-		printAndLog(err.Error(), FATAL)
+		export.PrintAndLog(err.Error(), export.FATAL)
 		printHelp()
 		os.Exit(1)
 	}
 
 	defer f.Close()
 	log.SetOutput(f)
-	printAndLog(fmt.Sprintf("logging to %s", logfile), INFO)
+	export.PrintAndLog(fmt.Sprintf("logging to %s", logfile), export.INFO)
 
 	//check critical flags
-	err = checkFlags()
+	err = export.CheckFlags(config, environment, format, resource, repository)
 	if err != nil {
-		printAndLog(err.Error(), FATAL)
+		export.PrintAndLog(err.Error(), export.FATAL)
 		printHelp()
 		os.Exit(2)
 	}
 
 	//get a go-aspace api client
-	log.Println("INFO Creating go-aspace client")
+	export.PrintOnly("Creating go-aspace client", export.INFO)
 	client, err = aspace.NewClient(config, environment, timeout)
 	if err != nil {
-		printAndLog(fmt.Sprintf("failed to create a go-aspace client %s", err.Error()), FATAL)
+		export.PrintAndLog(fmt.Sprintf("failed to create a go-aspace client %s", err.Error()), export.FATAL)
 		os.Exit(3)
 	} else {
-		printAndLog(fmt.Sprintf("go-aspace client created, using go-aspace %s", aspace.LibraryVersion), INFO)
+		export.PrintAndLog(fmt.Sprintf("go-aspace client created, using go-aspace %s", aspace.LibraryVersion), export.INFO)
 	}
+	export.SetClient(client)
 
 	//get a map of repositories to be exported
-	repositoryMap, err := getRepositoryMap()
+	repositoryMap, err := export.GetRepositoryMap(repository, environment)
 	if err != nil {
-		printAndLog(err.Error(), FATAL)
+		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(4)
 	}
-	printAndLog(fmt.Sprintf("%d repositories returned from ArchivesSpace", len(repositoryMap)), INFO)
+	export.PrintAndLog(fmt.Sprintf("%d repositories returned from ArchivesSpace", len(repositoryMap)), export.INFO)
 
 	//get a slice of resourceInfo
-	resourceInfo, err = getResourceIDs(repositoryMap)
+	resourceInfo, err = export.GetResourceIDs(repositoryMap, resource)
 	if err != nil {
-		printAndLog(err.Error(), FATAL)
+		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(5)
 	}
-	printAndLog(fmt.Sprintf("%d resources returned from ArchivesSpace", len(resourceInfo)), INFO)
+	export.PrintAndLog(fmt.Sprintf("%d resources returned from ArchivesSpace", len(resourceInfo)), export.INFO)
 
 	//create work directory
 	workDir = fmt.Sprintf("aspace-exports-%s", formattedTime)
-	err = createWorkDirectory(workDir)
+	err = export.CreateWorkDirectory(workDir)
 	if err != nil {
-		printAndLog(err.Error(), FATAL)
+		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(6)
 	}
-	printAndLog(fmt.Sprintf("working directory created at %s", workDir), INFO)
+	export.PrintAndLog(fmt.Sprintf("working directory created at %s", workDir), export.INFO)
 
 	//Create the repository export and failure directories
-	err = createExportDirectories(workDir)
+	err = export.CreateExportDirectories(workDir, repositoryMap, unpublishedResources)
 	if err != nil {
-		printAndLog(err.Error(), FATAL)
+		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(6)
 	}
 
 	//export Resources
 	fmt.Printf("\nProcessing %d resources\n", len(resourceInfo))
-	err = exportResources(workDir)
+	err = export.ExportResources(workDir)
 	if err != nil {
-		printAndLog(err.Error(), FATAL)
+		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(7)
 	}
 
 	//clean up directories
-	err = cleanup()
+	err = export.Cleanup(workDir, logfile, reportFile)
 	if err != nil {
-		printAndLog(err.Error(), WARNING)
+		export.PrintAndLog(err.Error(), export.WARNING)
 	}
 
 	//exit
-	printAndLog("aspace-export process complete, exiting", INFO)
+	export.PrintAndLog("aspace-export process complete, exiting", export.INFO)
 	os.Exit(0)
 }

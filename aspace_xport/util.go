@@ -1,70 +1,28 @@
-package main
+package aspace_xport
 
 import (
-	"errors"
 	"fmt"
+	"github.com/nyudlts/go-aspace"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 )
 
-type LogLevel int
-
-const (
-	DEBUG LogLevel = iota
-	INFO
-	WARNING
-	ERROR
-	FATAL
-)
-
-func getLogLevelString(level LogLevel) string {
-	switch level {
-	case DEBUG:
-		return "[DEBUG]"
-	case INFO:
-		return "[INFO]"
-	case WARNING:
-		return "[WARNING]"
-	case ERROR:
-		return "[ERROR]"
-	case FATAL:
-		return "[FATAL]"
-	default:
-		panic(fmt.Errorf("log level %v is not supported", level))
-	}
+type ResourceInfo struct {
+	RepoID     int
+	RepoSlug   string
+	ResourceID int
 }
 
-func printAndLog(msg string, logLevel LogLevel) {
-	if logLevel == DEBUG && debug == false {
+var client *aspace.ASClient
 
-	} else {
-		level := getLogLevelString(logLevel)
-		fmt.Printf("%s %s\n", level, msg)
-		log.Printf("%s %s", level, msg)
-	}
+func SetClient(asclient *aspace.ASClient) {
+	client = asclient
 }
 
-func printOnly(msg string, logLevel LogLevel) {
-	if logLevel == DEBUG && debug == false {
-
-	} else {
-		level := getLogLevelString(logLevel)
-		fmt.Printf("%s %s\n", level, msg)
-	}
-}
-
-func logOnly(msg string, logLevel LogLevel) {
-	if logLevel == DEBUG && debug == false {
-
-	} else {
-		level := getLogLevelString(logLevel)
-		log.Printf("%s %s\n", level, msg)
-	}
-}
-
-func checkFlags() error {
+// check the application flags
+func CheckFlags(config string, environment string, format string, resource int, repository int) error {
 	//check if the config file exists
 	if config == "" {
 		return fmt.Errorf("location of go-aspace config file is mandatory, set the --config option when running aspace-export")
@@ -89,78 +47,7 @@ func checkFlags() error {
 	return nil
 }
 
-func createWorkDirectory(workDirPath string) error {
-	//determine if the directory already exists or if there is an error, if so return an error
-	if _, err := os.Stat("/path/to/whatever"); err == nil {
-		return fmt.Errorf("work directory %s already exists")
-
-	} else if errors.Is(err, os.ErrNotExist) {
-
-	} else {
-		return err
-	}
-
-	err := os.Mkdir(workDirPath, 0755)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func createExportDirectories(workDirPath string) error {
-	for slug := range repositoryMap {
-
-		repositoryDir := filepath.Join(workDirPath, slug)
-		exportDir := filepath.Join(repositoryDir, "exports")
-		failureDir := filepath.Join(repositoryDir, "invalid")
-		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
-
-		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(repositoryDir, 0755)
-			if innerErr != nil {
-				return innerErr
-			} else {
-				printAndLog(fmt.Sprintf("INFO created repository directory", repositoryDir), INFO)
-			}
-		}
-
-		//create the repository export directory
-		if _, err := os.Stat(exportDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(exportDir, 0755)
-			if innerErr != nil {
-				return innerErr
-			} else {
-				printAndLog(fmt.Sprintf("INFO created exports directory &s", exportDir), INFO)
-			}
-		}
-
-		//create the repository failure directory
-		if _, err := os.Stat(failureDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(failureDir, 0755)
-			if innerErr != nil {
-				return innerErr
-			} else {
-				printAndLog(fmt.Sprintf("created failures directory &s", failureDir), INFO)
-			}
-		}
-
-		if unpublishedResources == true {
-			if _, err := os.Stat(unpublishedDir); os.IsNotExist(err) {
-				innerErr := os.Mkdir(unpublishedDir, 0755)
-				if innerErr != nil {
-					return innerErr
-				} else {
-					printAndLog(fmt.Sprintf("created unpublished directory %s", unpublishedDir), INFO)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func getRepositoryMap() (map[string]int, error) {
+func GetRepositoryMap(repository int, environment string) (map[string]int, error) {
 	repositories := make(map[string]int)
 
 	if repository != 0 {
@@ -187,7 +74,7 @@ func getRepositoryMap() (map[string]int, error) {
 	return repositories, nil
 }
 
-func getResourceIDs(repMap map[string]int) ([]ResourceInfo, error) {
+func GetResourceIDs(repMap map[string]int, resource int) ([]ResourceInfo, error) {
 
 	resources := []ResourceInfo{}
 
@@ -218,7 +105,77 @@ func getResourceIDs(repMap map[string]int) ([]ResourceInfo, error) {
 	return resources, nil
 }
 
-func cleanup() error {
+func CreateWorkDirectory(workDirPath string) error {
+	//determine if the directory already exists or if there is an error, if so return an error
+	if _, err := os.Stat(workDirPath); err == nil {
+		return fmt.Errorf("work directory %s already exists")
+	} else if errors.Is(err, os.ErrNotExist) {
+		//the workDir doesn't exist -- create it if there are no other errors
+	} else {
+		return err
+	}
+
+	err := os.Mkdir(workDirPath, 0755)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, unpublishedResources bool) error {
+	for slug := range repositoryMap {
+
+		repositoryDir := filepath.Join(workDirPath, slug)
+		exportDir := filepath.Join(repositoryDir, "exports")
+		failureDir := filepath.Join(repositoryDir, "invalid")
+		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
+
+		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
+			innerErr := os.Mkdir(repositoryDir, 0755)
+			if innerErr != nil {
+				return innerErr
+			} else {
+				PrintAndLog(fmt.Sprintf("created repository directory %s", repositoryDir), INFO)
+			}
+		}
+
+		//create the repository export directory
+		if _, err := os.Stat(exportDir); os.IsNotExist(err) {
+			innerErr := os.Mkdir(exportDir, 0755)
+			if innerErr != nil {
+				return innerErr
+			} else {
+				PrintAndLog(fmt.Sprintf("created exports directory %s", exportDir), INFO)
+			}
+		}
+
+		//create the repository failure directory
+		if _, err := os.Stat(failureDir); os.IsNotExist(err) {
+			innerErr := os.Mkdir(failureDir, 0755)
+			if innerErr != nil {
+				return innerErr
+			} else {
+				PrintAndLog(fmt.Sprintf("created failures directory %s", failureDir), INFO)
+			}
+		}
+
+		if unpublishedResources == true {
+			if _, err := os.Stat(unpublishedDir); os.IsNotExist(err) {
+				innerErr := os.Mkdir(unpublishedDir, 0755)
+				if innerErr != nil {
+					return innerErr
+				} else {
+					PrintAndLog(fmt.Sprintf("created unpublished directory %s", unpublishedDir), INFO)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func Cleanup(workDir string, logfile string, reportfile string) error {
 	//remove any empty directories
 	err := filepath.Walk(workDir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
