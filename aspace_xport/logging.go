@@ -19,6 +19,7 @@ const (
 var (
 	debug   = false
 	logfile = "aspace-export"
+	logger  *os.File
 )
 
 func getLogLevelString(level LogLevel) string {
@@ -38,19 +39,27 @@ func getLogLevelString(level LogLevel) string {
 	}
 }
 
-func CreateLog(formattedTime string, dbug bool) error {
+func CreateLogger(formattedTime string, dbug bool) error {
 	//create a log file
 	logfile = logfile + "-" + formattedTime + ".log"
 
-	f, err := os.Create(logfile)
+	var err error
+	logger, err = os.Create(logfile)
 	if err != nil {
 		return err
 	}
 
-	defer f.Close()
-	log.SetOutput(f)
+	log.SetOutput(logger)
 	PrintAndLog(fmt.Sprintf("logging to %s", logfile), INFO)
 	debug = dbug
+	return nil
+}
+
+func CloseLogger() error {
+	err := logger.Close()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

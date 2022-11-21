@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/nyudlts/go-aspace"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,7 +75,7 @@ func ExportResources(workPathDir string, stTime time.Time, fTime string, xportFo
 
 	for range resourceChunks {
 		chunk := <-resultChannel
-		log.Println("INFO Adding", len(chunk), "uris to uri list")
+		PrintAndLog(fmt.Sprintln("adding", len(chunk), "results to results list"), INFO)
 		results = append(results, chunk...)
 	}
 
@@ -89,7 +88,7 @@ func ExportResources(workPathDir string, stTime time.Time, fTime string, xportFo
 }
 
 func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
-	PrintAndLog(fmt.Sprintf("Starting worker %d processing %d resources", workerID, len(resourceInfoChunk)), INFO)
+	PrintAndLog(fmt.Sprintf("starting worker %d processing %d resources", workerID, len(resourceInfoChunk)), INFO)
 	var results = []ExportResult{}
 
 	//loop through the chunk
@@ -121,7 +120,7 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 		}
 	}
 
-	PrintAndLog(fmt.Sprintf("Worker %d finished, processed %d resources\n", workerID, len(results)), INFO)
+	PrintAndLog(fmt.Sprintf("worker %d finished, processed %d resources", workerID, len(results)), INFO)
 	resultChannel <- results
 }
 
@@ -170,7 +169,7 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 		LogOnly(fmt.Sprintf("worker %d - exported resource %s - %s with warning", workerID, res.URI, marcFilename), WARNING)
 		return ExportResult{Status: "WARNING", URI: res.URI, Error: warningType}
 	}
-	LogOnly(fmt.Sprintf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID), INFO)
+	LogOnly(fmt.Sprintf("worker %d exported resource %s - %s", workerID, res.URI, res.EADID), INFO)
 	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
 }
 
@@ -221,7 +220,7 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 		LogOnly(fmt.Sprintf("worker %d exported resource %s - %s with warning", workerID, res.URI, eadFilename), WARNING)
 		return ExportResult{Status: "WARNING", URI: res.URI, Error: warningType}
 	}
-	LogOnly(fmt.Sprintf("INFO worker %d exported resource %s - %s", workerID, res.URI, res.EADID), INFO)
+	LogOnly(fmt.Sprintf("worker %d exported resource %s - %s", workerID, res.URI, res.EADID), INFO)
 	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
 }
 

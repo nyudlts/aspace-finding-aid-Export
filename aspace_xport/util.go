@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/nyudlts/go-aspace"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -18,8 +17,13 @@ type ResourceInfo struct {
 
 var client *aspace.ASClient
 
-func SetClient(asclient *aspace.ASClient) {
-	client = asclient
+func CreateAspaceClient(config string, environment string, timeout int) error {
+	var err error
+	client, err = aspace.NewClient(config, environment, timeout)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // check the application flags
@@ -187,8 +191,11 @@ func Cleanup() error {
 				defer f.Close()
 				_, err = f.Readdirnames(1)
 				if err == io.EOF {
-					log.Printf("INFO removing empty directory at: %s", path)
-					os.Remove(path)
+					PrintAndLog(fmt.Sprintf("removing empty directory at: %s", path), INFO)
+					innerErr := os.Remove(path)
+					if innerErr != nil {
+						return innerErr
+					}
 				}
 			}
 		}
@@ -212,5 +219,6 @@ func Cleanup() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

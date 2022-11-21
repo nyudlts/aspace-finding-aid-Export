@@ -93,10 +93,10 @@ func main() {
 	formattedTime = startTime.Format("20060102-050403")
 
 	//starting the application
-	export.PrintOnly(fmt.Sprintf("aspace-export %s", appVersion), export.INFO)
+	export.PrintAndLog(fmt.Sprintf("aspace-export %s", appVersion), export.INFO)
 
 	//create logger
-	err := export.CreateLog(formattedTime, debug)
+	err := export.CreateLogger(formattedTime, debug)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.ERROR)
 		printHelp()
@@ -113,14 +113,14 @@ func main() {
 
 	//get a go-aspace api client
 	export.PrintOnly("Creating go-aspace client", export.INFO)
-	client, err = aspace.NewClient(config, environment, timeout)
+
+	err = export.CreateAspaceClient(config, environment, timeout)
 	if err != nil {
 		export.PrintAndLog(fmt.Sprintf("failed to create a go-aspace client %s", err.Error()), export.FATAL)
 		os.Exit(3)
 	} else {
 		export.PrintAndLog(fmt.Sprintf("go-aspace client created, using go-aspace %s", aspace.LibraryVersion), export.INFO)
 	}
-	export.SetClient(client)
 
 	//get a map of repositories to be exported
 	repositoryMap, err := export.GetRepositoryMap(repository, environment)
@@ -169,7 +169,7 @@ func main() {
 	}
 
 	//exit
-	fmt.Println()
-	export.PrintOnly("aspace-export process complete, exiting", export.INFO)
+	export.PrintOnly("aspace-export process complete, exiting\n", export.INFO)
+	export.CloseLogger()
 	os.Exit(0)
 }
