@@ -84,13 +84,16 @@ func main() {
 
 	//check for the version flag `--version`
 	if version == true {
-		fmt.Printf("aspace-export %s, using go-aspace %s\n", appVersion, aspace.LibraryVersion)
+		fmt.Sprintf("aspace-export %s, using go-aspace %s\n", appVersion, aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
 	//create timestamp for files
 	startTime = time.Now()
 	formattedTime = startTime.Format("20060102-050403")
+
+	//starting the application
+	export.PrintOnly(fmt.Sprintf("aspace-export %s", appVersion), export.INFO)
 
 	//create logger
 	err := export.CreateLog(formattedTime, debug)
@@ -99,9 +102,6 @@ func main() {
 		printHelp()
 		os.Exit(1)
 	}
-
-	//starting the application
-	export.PrintOnly(fmt.Sprintf("\n-- aspace-export %s --\n\n", appVersion), export.INFO)
 
 	//check critical flags
 	err = export.CheckFlags(config, environment, format, resource, repository)
@@ -155,7 +155,7 @@ func main() {
 	}
 
 	//export Resources
-	fmt.Printf("\nProcessing %d resources\n", len(resourceInfo))
+	export.PrintOnly(fmt.Sprintf("processing %d resources", len(resourceInfo)), export.INFO)
 	err = export.ExportResources(workDir, startTime, formattedTime, format, unpublishedNotes, unpublishedResources, validate, resourceInfo, workers, reformat)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
@@ -169,6 +169,7 @@ func main() {
 	}
 
 	//exit
-	export.PrintAndLog("aspace-export process complete, exiting", export.INFO)
+	fmt.Println()
+	export.PrintOnly("aspace-export process complete, exiting", export.INFO)
 	os.Exit(0)
 }

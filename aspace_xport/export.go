@@ -12,6 +12,21 @@ import (
 	"time"
 )
 
+var (
+	numSkipped           = 0
+	workDir              string
+	reportFile           string
+	executionTime        time.Duration
+	formattedTime        string
+	exportFormat         ExportFormat
+	unpublishedNotes     bool
+	unpublishedResources bool
+	validate             bool
+	reformat             bool
+	results              []ExportResult
+	startTime            time.Time
+)
+
 type ExportFormat int
 
 const (
@@ -40,22 +55,10 @@ type ExportResult struct {
 	Error  string
 }
 
-var (
-	numSkipped           = 0
-	workDir              string
-	reportFile           string
-	executionTime        time.Duration
-	formattedTime        string
-	exportFormat         ExportFormat
-	unpublishedNotes     bool
-	unpublishedResources bool
-	validate             bool
-	reformat             bool
-)
+func ExportResources(workPathDir string, stTime time.Time, fTime string, xportFormat string, unpubNotes bool,
+	unpubResources, valid bool, resInfo []ResourceInfo, workers int, reform bool) error {
 
-func ExportResources(workPathDir string, startTime time.Time,
-	fTime string, xportFormat string,
-	unpubNotes bool, unpubResources, valid bool, resInfo []ResourceInfo, workers int, reform bool) error {
+	startTime = stTime
 	formattedTime = fTime
 	workDir = workPathDir
 	unpublishedNotes = unpubNotes
@@ -71,86 +74,16 @@ func ExportResources(workPathDir string, startTime time.Time,
 		go exportChunk(chunk, resultChannel, i+1)
 	}
 
-	var results []ExportResult
-
 	for range resourceChunks {
 		chunk := <-resultChannel
 		log.Println("INFO Adding", len(chunk), "uris to uri list")
 		results = append(results, chunk...)
 	}
 
-	//seperate result types
-	successes := []ExportResult{}
-	errors := []ExportResult{}
-	warnings := []ExportResult{}
-	skipped := []ExportResult{}
-
-	for _, result := range results {
-		switch result.Status {
-		case "SUCCESS":
-			successes = append(successes, result)
-		case "ERROR":
-			errors = append(errors, result)
-		case "WARNING":
-			warnings = append(warnings, result)
-		case "SKIPPED":
-			skipped = append(skipped, result)
-		default:
-		}
-	}
-
-	executionTime = time.Since(startTime)
-	//reporting
-	reportFile = filepath.Join("aspace-export-" + formattedTime + "-report.txt")
-	report, err := os.Create(reportFile)
+	err := CreateReport()
 	if err != nil {
-		return err
+		fmt.Errorf("Could not create results report")
 	}
-
-	defer report.Close()
-	writer := bufio.NewWriter(report)
-	fmt.Println("")
-	msg := fmt.Sprintf("ASPACE-EXPORT REPORT\n====================\n")
-	writer.WriteString(msg)
-	fmt.Printf(msg)
-	msg = fmt.Sprintf("Execution Time: %v", executionTime)
-	writer.WriteString(msg)
-	fmt.Printf(msg)
-	msg = fmt.Sprintf("\n%d Resources proccessed:\n", len(results))
-	writer.WriteString(msg)
-	fmt.Printf(msg)
-	msg = fmt.Sprintf("  %d Successful exports\n", len(successes))
-	writer.WriteString(msg)
-	fmt.Printf(msg)
-	msg = fmt.Sprintf("  %d Skipped resources\n", len(skipped))
-	writer.WriteString(msg)
-	fmt.Printf(msg)
-
-	msg = fmt.Sprintf("  %d Exports with warnings\n", len(warnings))
-	writer.WriteString(msg)
-	fmt.Printf(msg)
-
-	if len(warnings) > 0 {
-		for _, w := range warnings {
-			w.Error = strings.ReplaceAll(w.Error, "\n", " ")
-			msg = fmt.Sprintf("    %v\n", w)
-			writer.WriteString(msg)
-			fmt.Printf(msg)
-		}
-	}
-
-	msg = fmt.Sprintf("  %d Errors Encountered\n", len(errors))
-	writer.WriteString(msg)
-	fmt.Printf(msg)
-	if len(errors) > 0 {
-		for _, e := range errors {
-			e.Error = strings.ReplaceAll(e.Error, "\n", " ")
-			msg = fmt.Sprintf("    %v\n", e)
-			writer.WriteString(msg)
-			fmt.Printf(msg)
-		}
-	}
-	writer.Flush()
 
 	return nil
 }
@@ -340,4 +273,72 @@ func MergeIDs(r aspace.Resource) string {
 		}
 	}
 	return ids
+}
+
+func CreateReport() error {
+	//seperate result types
+	successes := []ExportResult{}
+	errors := []ExportResult{}
+	warnings := []ExportResult{}
+	skipped := []ExportResult{}
+
+	for _, result := range results {
+		switch result.Status {
+		case "SUCCESS":
+			successes = append(successes, result)
+		case "ERROR":
+			errors = append(errors, result)
+		case "WARNING":
+			warnings = append(warnings, result)
+		case "SKIPPED":
+			skipped = append(skipped, result)
+		default:
+		}
+	}
+
+	executionTime = time.Since(startTime)
+
+	reportFile = filepath.Join("aspace-export-" + formattedTime + "-report.txt")
+	report, err := os.Create(reportFile)
+	if err != nil {
+		return err
+	}
+
+	defer report.Close()
+	writer := bufio.NewWriter(report)
+
+	msg := fmt.Sprintf("ASPACE-EXPORT REPORT\n====================\n")
+	msg = msg + fmt.Sprintf("Execution Time: %v", executionTime)
+	msg = msg + fmt.Sprintf("\n%d Resources proccessed:\n", len(results))
+	msg = msg + fmt.Sprintf("  %d Successful exports\n", len(successes))
+	msg = msg + fmt.Sprintf("  %d Skipped resources\n", len(skipped))
+	msg = msg + fmt.Sprintf("  %d Exports with warnings\n", len(warnings))
+
+	if len(warnings) > 0 {
+		for _, w := range warnings {
+			w.Error = strings.ReplaceAll(w.Error, "\n", " ")
+			msg = msg + fmt.Sprintf("    %v\n", w)
+		}
+	}
+
+	msg = msg + fmt.Sprintf("  %d Errors Encountered\n", len(errors))
+	if len(errors) > 0 {
+		for _, e := range errors {
+			e.Error = strings.ReplaceAll(e.Error, "\n", " ")
+			msg = msg + fmt.Sprintf("    %v\n", e)
+		}
+	}
+
+	fmt.Println(msg)
+	_, err = writer.WriteString(msg)
+	if err != nil {
+		return err
+	}
+
+	err = writer.Flush()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
