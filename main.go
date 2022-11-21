@@ -83,7 +83,8 @@ func main() {
 
 	//check for the version flag `--version`
 	if version == true {
-		fmt.Printf("aspace-export %s, using go-aspace %s\n", appVersion, aspace.LibraryVersion)
+		fmt.Printf("  aspace-export %s <https://github.com/nyudlts/aspace-export>\n", appVersion)
+		fmt.Printf("  go-aspace %s <https://github.com/nyudlts/aspace-export>\n", aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
@@ -107,6 +108,10 @@ func main() {
 	err = export.CheckFlags(config, environment, format, resource, repository)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		printHelp()
 		os.Exit(2)
 	}
@@ -116,6 +121,10 @@ func main() {
 	err = export.CheckPath(workDir)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(3)
 	}
 	export.PrintAndLog(fmt.Sprintf("%s exists and is a directory", workDir), export.INFO)
@@ -125,6 +134,10 @@ func main() {
 	err = export.CreateAspaceClient(config, environment, timeout)
 	if err != nil {
 		export.PrintAndLog(fmt.Sprintf("failed to create a go-aspace client %s", err.Error()), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(4)
 	} else {
 		export.PrintAndLog(fmt.Sprintf("go-aspace client created, using go-aspace %s", aspace.LibraryVersion), export.INFO)
@@ -134,6 +147,10 @@ func main() {
 	repositoryMap, err := export.GetRepositoryMap(repository, environment)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(5)
 	}
 	export.PrintAndLog(fmt.Sprintf("%d repositories returned from ArchivesSpace", len(repositoryMap)), export.INFO)
@@ -142,6 +159,10 @@ func main() {
 	resourceInfo, err = export.GetResourceIDs(repositoryMap, resource)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(6)
 	}
 	export.PrintAndLog(fmt.Sprintf("%d resources returned from ArchivesSpace", len(resourceInfo)), export.INFO)
@@ -151,6 +172,10 @@ func main() {
 	err = export.CreateWorkDirectory(workDir)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(7)
 	}
 	export.PrintAndLog(fmt.Sprintf("working directory created at %s", workDir), export.INFO)
@@ -159,6 +184,10 @@ func main() {
 	err = export.CreateExportDirectories(workDir, repositoryMap, unpublishedResources)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(8)
 	}
 
@@ -166,6 +195,10 @@ func main() {
 	xportFormat, err := export.GetExportFormat(format)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(9)
 	}
 
@@ -185,6 +218,10 @@ func main() {
 	err = export.ExportResources(xportOptions, startTime, formattedTime, &resourceInfo)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
+		err = export.CloseLogger()
+		if err != nil {
+			export.PrintAndLog(err.Error(), export.ERROR)
+		}
 		os.Exit(10)
 	}
 
@@ -198,7 +235,7 @@ func main() {
 	export.PrintAndLog("aspace-export process complete, exiting\n", export.INFO)
 	err = export.CloseLogger()
 	if err != nil {
-		panic(err)
+		export.PrintAndLog(err.Error(), export.ERROR)
 	}
 
 	os.Exit(0)

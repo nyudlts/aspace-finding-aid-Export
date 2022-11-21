@@ -28,23 +28,26 @@ func CreateAspaceClient(config string, environment string, timeout int) error {
 
 // check the application flags
 func CheckFlags(config string, environment string, format string, resource int, repository int) error {
-	//check if the config file exists
+	//check if the config file is set
 	if config == "" {
 		return fmt.Errorf("location of go-aspace config file is mandatory, set the --config option when running aspace-export")
 	}
 
+	//check that the config exists
 	if _, err := os.Stat(config); os.IsNotExist(err) {
 		return fmt.Errorf("go-aspace config file does not exist at %s", config)
 	}
-
+	//check that the environment is set
 	if environment == "" {
 		return fmt.Errorf("environment to run export against is mandatory, set the --env option when running aspace=export")
 	}
 
+	//check that the format is either `ead` or `marc`
 	if format != "marc" && format != "ead" {
 		return fmt.Errorf("format must be either `ead` or `marc`, set the --format option when running aspace-export")
 	}
 
+	//check that a repository id is set if a resource id is set
 	if resource != 0 && repository == 0 {
 		return fmt.Errorf("a single resource can not be exported if the repository is not specified, set the --repository option when running aspace-export")
 	}
@@ -52,6 +55,7 @@ func CheckFlags(config string, environment string, format string, resource int, 
 	return nil
 }
 
+// check that a path exists and is a directory
 func CheckPath(path string) error {
 	fi, err := os.Stat(path)
 	if err == nil {
@@ -64,14 +68,14 @@ func CheckPath(path string) error {
 	return nil
 }
 
+// get a map of repository slugs and an id --TO DO reverse map order -- index by ID
 func GetRepositoryMap(repository int, environment string) (map[string]int, error) {
 	repositories := make(map[string]int)
 
 	if repository != 0 {
-		//export a single repository
 		repositoryObject, err := client.GetRepository(repository)
 		if err != nil {
-			return repositories, fmt.Errorf("repository id %d does not exist in the %s environment", repository, environment)
+			return repositories, err
 		}
 		repositories[repositoryObject.Slug] = repository
 	} else {
@@ -80,6 +84,7 @@ func GetRepositoryMap(repository int, environment string) (map[string]int, error
 		if err != nil {
 			return repositories, err
 		}
+
 		for _, r := range repositoryIds {
 			repositoryObject, err := client.GetRepository(r)
 			if err != nil {
@@ -91,6 +96,7 @@ func GetRepositoryMap(repository int, environment string) (map[string]int, error
 	return repositories, nil
 }
 
+// get a slice of ResourceInfo objects for a repository
 func GetResourceIDs(repMap map[string]int, resource int) ([]ResourceInfo, error) {
 
 	resources := []ResourceInfo{}
@@ -122,6 +128,7 @@ func GetResourceIDs(repMap map[string]int, resource int) ([]ResourceInfo, error)
 	return resources, nil
 }
 
+// check that a work directory does not exist if so create it
 func CreateWorkDirectory(workDirPath string) error {
 	//determine if the directory already exists or if there is an error, if so return an error
 	if _, err := os.Stat(workDirPath); err == nil {
@@ -132,6 +139,7 @@ func CreateWorkDirectory(workDirPath string) error {
 		return err
 	}
 
+	//create the work directory
 	err := os.Mkdir(workDirPath, 0755)
 	if err != nil {
 		return err
@@ -140,6 +148,7 @@ func CreateWorkDirectory(workDirPath string) error {
 	return nil
 }
 
+// create the repository, export, failure and unpublished sub directories in the work directory
 func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, unpublishedResources bool) error {
 	for slug := range repositoryMap {
 
@@ -148,50 +157,39 @@ func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, u
 		failureDir := filepath.Join(repositoryDir, "invalid")
 		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
 
-		if _, err := os.Stat(repositoryDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(repositoryDir, 0755)
-			if innerErr != nil {
-				return innerErr
-			} else {
-				PrintAndLog(fmt.Sprintf("created repository directory %s", repositoryDir), INFO)
-			}
+		err := os.Mkdir(repositoryDir, 0644)
+		if err != nil {
+			return err
 		}
+		PrintAndLog(fmt.Sprintf("created repository directory %s", repositoryDir), INFO)
 
 		//create the repository export directory
-		if _, err := os.Stat(exportDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(exportDir, 0755)
-			if innerErr != nil {
-				return innerErr
-			} else {
-				PrintAndLog(fmt.Sprintf("created exports directory %s", exportDir), INFO)
-			}
+		err = os.Mkdir(exportDir, 0644)
+		if err != nil {
+			return err
 		}
+		PrintAndLog(fmt.Sprintf("created export directory %s", exportDir), INFO)
 
 		//create the repository failure directory
-		if _, err := os.Stat(failureDir); os.IsNotExist(err) {
-			innerErr := os.Mkdir(failureDir, 0755)
-			if innerErr != nil {
-				return innerErr
-			} else {
-				PrintAndLog(fmt.Sprintf("created failures directory %s", failureDir), INFO)
-			}
+		err = os.Mkdir(failureDir, 0644)
+		if err != nil {
+			return err
 		}
+		PrintAndLog(fmt.Sprintf("created failure directory %s", failureDir), INFO)
 
 		if unpublishedResources == true {
-			if _, err := os.Stat(unpublishedDir); os.IsNotExist(err) {
-				innerErr := os.Mkdir(unpublishedDir, 0755)
-				if innerErr != nil {
-					return innerErr
-				} else {
-					PrintAndLog(fmt.Sprintf("created unpublished directory %s", unpublishedDir), INFO)
-				}
+			err = os.Mkdir(unpublishedDir, 0644)
+			if err != nil {
+				return err
 			}
+			PrintAndLog(fmt.Sprintf("created export directory %s", unpublishedDir), INFO)
 		}
 	}
 
 	return nil
 }
 
+// run cleanup tasks
 func Cleanup(workDir string) error {
 	//remove any empty directories
 	err := filepath.Walk(workDir, func(path string, info os.FileInfo, err error) error {
