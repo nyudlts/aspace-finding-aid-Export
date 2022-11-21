@@ -58,6 +58,8 @@ func CheckPath(path string) error {
 		if !fi.IsDir() {
 			return fmt.Errorf("path %s is not a directory", path)
 		}
+	} else {
+		return err
 	}
 	return nil
 }

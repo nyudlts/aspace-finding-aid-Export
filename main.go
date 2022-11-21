@@ -110,20 +110,22 @@ func main() {
 		printHelp()
 		os.Exit(2)
 	}
+	export.PrintAndLog("all mandatory options set", export.INFO)
 
 	//check that export location exists
 	err = export.CheckPath(workDir)
 	if err != nil {
-
+		export.PrintAndLog(err.Error(), export.FATAL)
+		os.Exit(3)
 	}
+	export.PrintAndLog(fmt.Sprintf("%s exists and is a directory", workDir), export.INFO)
 
 	//get a go-aspace api client
 	export.PrintOnly("Creating go-aspace client", export.INFO)
-
 	err = export.CreateAspaceClient(config, environment, timeout)
 	if err != nil {
 		export.PrintAndLog(fmt.Sprintf("failed to create a go-aspace client %s", err.Error()), export.FATAL)
-		os.Exit(3)
+		os.Exit(4)
 	} else {
 		export.PrintAndLog(fmt.Sprintf("go-aspace client created, using go-aspace %s", aspace.LibraryVersion), export.INFO)
 	}
@@ -132,7 +134,7 @@ func main() {
 	repositoryMap, err := export.GetRepositoryMap(repository, environment)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
-		os.Exit(4)
+		os.Exit(5)
 	}
 	export.PrintAndLog(fmt.Sprintf("%d repositories returned from ArchivesSpace", len(repositoryMap)), export.INFO)
 
@@ -140,7 +142,7 @@ func main() {
 	resourceInfo, err = export.GetResourceIDs(repositoryMap, resource)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
-		os.Exit(5)
+		os.Exit(6)
 	}
 	export.PrintAndLog(fmt.Sprintf("%d resources returned from ArchivesSpace", len(resourceInfo)), export.INFO)
 
@@ -149,7 +151,7 @@ func main() {
 	err = export.CreateWorkDirectory(workDir)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
-		os.Exit(6)
+		os.Exit(7)
 	}
 	export.PrintAndLog(fmt.Sprintf("working directory created at %s", workDir), export.INFO)
 
@@ -157,14 +159,14 @@ func main() {
 	err = export.CreateExportDirectories(workDir, repositoryMap, unpublishedResources)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
-		os.Exit(6)
+		os.Exit(8)
 	}
 
 	//Validate the export format
 	xportFormat, err := export.GetExportFormat(format)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
-		os.Exit(7)
+		os.Exit(9)
 	}
 
 	//create ExportOptions struct
@@ -183,7 +185,7 @@ func main() {
 	err = export.ExportResources(xportOptions, startTime, formattedTime, &resourceInfo)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
-		os.Exit(8)
+		os.Exit(10)
 	}
 
 	//clean up directories
