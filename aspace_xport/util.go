@@ -180,7 +180,7 @@ func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, u
 	return nil
 }
 
-func Cleanup() error {
+func Cleanup(workDir string) error {
 	//remove any empty directories
 	err := filepath.Walk(workDir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
@@ -212,6 +212,7 @@ func Cleanup() error {
 	if err != nil {
 		return err
 	}
+	PrintAndLog(fmt.Sprintf("moved log file to %s", newLoc), INFO)
 
 	//move the reportFile to the workdir
 	newLoc = filepath.Join(workDir, reportFile)
@@ -219,6 +220,7 @@ func Cleanup() error {
 	if err != nil {
 		return err
 	}
+	PrintAndLog(fmt.Sprintf("moved report file to %s", newLoc), INFO)
 
 	return nil
 }

@@ -154,22 +154,44 @@ func main() {
 		os.Exit(6)
 	}
 
-	//export Resources
-	export.PrintOnly(fmt.Sprintf("processing %d resources", len(resourceInfo)), export.INFO)
-	err = export.ExportResources(workDir, startTime, formattedTime, format, unpublishedNotes, unpublishedResources, validate, resourceInfo, workers, reformat)
+	//Validate the export format
+	xportFormat, err := export.GetExportFormat(format)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(7)
 	}
 
+	//create Exportoptions struct
+	xportOptions := export.ExportOptions{
+		WorkDir:              workDir,
+		Format:               xportFormat,
+		UnpublishedNotes:     unpublishedNotes,
+		UnpublishedResources: unpublishedResources,
+		Validate:             validate,
+		Workers:              workers,
+		Reformat:             reformat,
+	}
+
+	//export resources
+	export.PrintAndLog(fmt.Sprintf("processing %d resources", len(resourceInfo)), export.INFO)
+	err = export.ExportResources(xportOptions, startTime, formattedTime, &resourceInfo)
+	if err != nil {
+		export.PrintAndLog(err.Error(), export.FATAL)
+		os.Exit(8)
+	}
+
 	//clean up directories
-	err = export.Cleanup()
+	err = export.Cleanup(workDir)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.WARNING)
 	}
 
 	//exit
 	export.PrintOnly("aspace-export process complete, exiting\n", export.INFO)
-	export.CloseLogger()
+	err = export.CloseLogger()
+	if err != nil {
+		panic(err)
+	}
+
 	os.Exit(0)
 }

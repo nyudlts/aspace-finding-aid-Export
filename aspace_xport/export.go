@@ -12,39 +12,42 @@ import (
 )
 
 var (
-	numSkipped           = 0
-	workDir              string
-	reportFile           string
-	executionTime        time.Duration
-	formattedTime        string
-	exportFormat         ExportFormat
-	unpublishedNotes     bool
-	unpublishedResources bool
-	validate             bool
-	reformat             bool
-	results              []ExportResult
-	startTime            time.Time
+	numSkipped    = 0
+	reportFile    string
+	results       []ExportResult
+	startTime     time.Time
+	executionTime time.Duration
+	formattedTime string
+	exportOptions ExportOptions
+	resourceInfo  *[]ResourceInfo
 )
+
+type ExportOptions struct {
+	WorkDir              string
+	Format               ExportFormat
+	UnpublishedNotes     bool
+	UnpublishedResources bool
+	Validate             bool
+	Workers              int
+	Reformat             bool
+}
 
 type ExportFormat int
 
 const (
 	EAD ExportFormat = iota
 	MARC
+	UNSUPPORTED
 )
 
-func setExportFormat(xportFormat string) {
+func GetExportFormat(xportFormat string) (ExportFormat, error) {
 	switch xportFormat {
 	case "ead":
-		{
-			exportFormat = EAD
-		}
+		return EAD, nil
 	case "marc":
-		{
-			exportFormat = MARC
-		}
+		return MARC, nil
 	default:
-		panic("Unknown Export Format Error")
+		return UNSUPPORTED, fmt.Errorf("unsupported format error, %s, supported formats are `ead` or `marc`")
 	}
 }
 
@@ -54,19 +57,12 @@ type ExportResult struct {
 	Error  string
 }
 
-func ExportResources(workPathDir string, stTime time.Time, fTime string, xportFormat string, unpubNotes bool,
-	unpubResources, valid bool, resInfo []ResourceInfo, workers int, reform bool) error {
-
+func ExportResources(options ExportOptions, stTime time.Time, fTime string, resInfo *[]ResourceInfo) error {
+	exportOptions = options
 	startTime = stTime
 	formattedTime = fTime
-	workDir = workPathDir
-	unpublishedNotes = unpubNotes
-	unpublishedResources = unpubResources
-	reformat = reform
-	validate = valid
-	setExportFormat(xportFormat)
-	unpublishedNotes = unpubNotes
-	resourceChunks := chunkResources(resInfo, workers)
+	resourceInfo = resInfo
+	resourceChunks := chunkResources()
 	resultChannel := make(chan []ExportResult)
 
 	for i, chunk := range resourceChunks {
@@ -85,6 +81,23 @@ func ExportResources(workPathDir string, stTime time.Time, fTime string, xportFo
 	}
 
 	return nil
+}
+
+func chunkResources() [][]ResourceInfo {
+	var divided [][]ResourceInfo
+	ri := *resourceInfo
+	chunkSize := (len(ri) + exportOptions.Workers - 1) / exportOptions.Workers
+
+	for i := 0; i < len(*resourceInfo); i += chunkSize {
+		end := i + chunkSize
+
+		if end > len(*resourceInfo) {
+			end = len(*resourceInfo)
+		}
+
+		divided = append(divided, ri[i:end])
+	}
+	return divided
 }
 
 func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportResult, workerID int) {
@@ -106,17 +119,19 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 		}
 
 		//check if the resource is set to be published
-		if unpublishedResources == false && res.Publish != true {
+		if exportOptions.UnpublishedResources == false && res.Publish != true {
 			LogOnly(fmt.Sprintf("worker %d - resource %s not set to publish, skipping", workerID, res.URI), INFO)
 			numSkipped = numSkipped + 1
 			results = append(results, ExportResult{Status: "SKIPPED", URI: res.URI, Error: ""})
 			continue
 		}
 
-		if exportFormat == MARC {
+		if exportOptions.Format == MARC {
 			results = append(results, exportMarc(rInfo, res, workerID))
-		} else if exportFormat == EAD {
+		} else if exportOptions.Format == EAD {
 			results = append(results, exportEAD(rInfo, res, workerID))
+		} else {
+			//there's an unsupported format, this shouldn't be possible
 		}
 	}
 
@@ -127,7 +142,7 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResult {
 
 	//get the marc record
-	marcBytes, err := client.GetMARCAsByteArray(info.RepoID, info.ResourceID, unpublishedNotes)
+	marcBytes, err := client.GetMARCAsByteArray(info.RepoID, info.ResourceID, exportOptions.UnpublishedNotes)
 	if err != nil {
 		LogOnly(fmt.Sprintf("worker %d - could not retrieve resource %s", workerID, res.URI), ERROR)
 		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
@@ -138,22 +153,22 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 
 	//set the location to write the marc record
 	var marcPath string
-	if unpublishedResources == true && res.Publish == false {
-		marcPath = filepath.Join(workDir, info.RepoSlug, "unpublished", marcFilename)
+	if exportOptions.UnpublishedResources == true && res.Publish == false {
+		marcPath = filepath.Join(exportOptions.WorkDir, info.RepoSlug, "unpublished", marcFilename)
 	} else {
-		marcPath = filepath.Join(workDir, info.RepoSlug, "exports", marcFilename)
+		marcPath = filepath.Join(exportOptions.WorkDir, info.RepoSlug, "exports", marcFilename)
 	}
 
 	//validate the output
 	warning := false
 	var warningType = ""
-	if validate == true {
+	if exportOptions.Validate == true {
 		err = aspace.ValidateMARC(marcBytes)
 		if err != nil {
 			warning = true
 			warningType = "failed MARC21 validation, writing to invalid directory"
 			LogOnly(fmt.Sprintf("worker %d resource %s - %s %s %s", workerID, res.URI, res.EADID, warningType, err.Error()), WARNING)
-			marcPath = filepath.Join(workDir, info.RepoSlug, "invalid", marcFilename)
+			marcPath = filepath.Join(exportOptions.WorkDir, info.RepoSlug, "invalid", marcFilename)
 		}
 	}
 
@@ -176,7 +191,7 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResult {
 
 	//get the ead as bytes
-	eadBytes, err := client.GetEADAsByteArray(info.RepoID, info.ResourceID, unpublishedNotes)
+	eadBytes, err := client.GetEADAsByteArray(info.RepoID, info.ResourceID, exportOptions.UnpublishedNotes)
 	if err != nil {
 		LogOnly(fmt.Sprintf("INFO worker %d could not retrieve resource %s", workerID, res.URI), ERROR)
 		return ExportResult{Status: "ERROR", URI: res.URI, Error: err.Error()}
@@ -184,18 +199,18 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 
 	//create the output filename
 	eadFilename := strings.ToLower(MergeIDs(res) + ".xml")
-	outputFile := filepath.Join(workDir, info.RepoSlug, "exports", eadFilename)
+	outputFile := filepath.Join(exportOptions.WorkDir, info.RepoSlug, "exports", eadFilename)
 
 	//validate the output
 	warning := false
 	var warningType = ""
-	if validate == true {
+	if exportOptions.Validate == true {
 		err = aspace.ValidateEAD(eadBytes)
 		if err != nil {
 			warning = true
 			warningType = "failed EAD2002 validation, writing to invalid directory"
 			LogOnly(fmt.Sprintf("worker %d - resource %s - %s %s", workerID, res.URI, res.EADID, warningType), WARNING)
-			outputFile = filepath.Join(workDir, info.RepoSlug, "invalid", eadFilename)
+			outputFile = filepath.Join(exportOptions.WorkDir, info.RepoSlug, "invalid", eadFilename)
 		}
 	}
 
@@ -207,7 +222,7 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 	}
 
 	//reformat the ead with tabs
-	if reformat == true {
+	if exportOptions.Reformat == true {
 		err = tabReformatXML(outputFile)
 		if err != nil {
 			LogOnly(fmt.Sprintf("worker %d - could not reformat %s", workerID, outputFile), WARNING)
@@ -222,23 +237,6 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 	}
 	LogOnly(fmt.Sprintf("worker %d exported resource %s - %s", workerID, res.URI, res.EADID), INFO)
 	return ExportResult{Status: "SUCCESS", URI: res.URI, Error: ""}
-}
-
-func chunkResources(resourceInfo []ResourceInfo, workers int) [][]ResourceInfo {
-	var divided [][]ResourceInfo
-
-	chunkSize := (len(resourceInfo) + workers - 1) / workers
-
-	for i := 0; i < len(resourceInfo); i += chunkSize {
-		end := i + chunkSize
-
-		if end > len(resourceInfo) {
-			end = len(resourceInfo)
-		}
-
-		divided = append(divided, resourceInfo[i:end])
-	}
-	return divided
 }
 
 func tabReformatXML(path string) error {
