@@ -6,31 +6,31 @@ import (
 	export "github.com/nyudlts/aspace-export/aspace_xport"
 	"github.com/nyudlts/go-aspace"
 	"os"
+	"path/filepath"
 	"time"
 )
 
 const appVersion = "v1.0.0b"
 
 var (
-	client               *aspace.ASClient
-	workers              int
 	config               string
+	debug                bool
 	environment          string
+	formattedTime        string
+	format               string
+	help                 bool
+	reformat             bool
 	repository           int
 	resource             int
-	timeout              int
-	workDir              string
 	resourceInfo         []export.ResourceInfo
-	validate             bool
-	help                 bool
-	version              bool
-	reformat             bool
-	format               string
+	startTime            time.Time
+	timeout              int
 	unpublishedNotes     bool
 	unpublishedResources bool
-	startTime            time.Time
-	debug                bool
-	formattedTime        string
+	validate             bool
+	version              bool
+	workDir              string
+	workers              int
 )
 
 func init() {
@@ -41,7 +41,7 @@ func init() {
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
 	flag.IntVar(&workers, "workers", 8, "number of concurrent workers")
 	flag.BoolVar(&validate, "validate", false, "perform ead2 schema validation")
-	flag.StringVar(&workDir, "export-location", "aspace-exports", "location to export finding aids")
+	flag.StringVar(&workDir, "export-location", ".", "location to export finding aids")
 	flag.BoolVar(&help, "help", false, "display the help message")
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
@@ -57,18 +57,17 @@ func printHelp() {
 	fmt.Println("  --config           path/to/the go-aspace configuration file					mandatory")
 	fmt.Println("  --environment      environment key in config file of the instance to run export against   	mandatory")
 	fmt.Println("  --format           the export format either `ead` or `marc					mandatory")
-	fmt.Println("  --export-location  path/to/the location to export finding aids                            	default `aspace-exports-[timestamp]`")
+	fmt.Println("  --export-location  path/to/the location to export finding aids                            	default `.`")
 	fmt.Println("  --include-unpublished-notes		include unpublished notes in exports			default `false`")
 	fmt.Println("  --include-unpublished-resources	include unpublished resources in exports		default `false`")
 	fmt.Println("  --reformat         tab reformat ead xml files							default `false`")
 	fmt.Println("  --repository       ID of the repository to be exported, `0` will export all repositories	default `0` ")
 	fmt.Println("  --resource         ID of the resource to be exported, `0` will export all resources		default `0` ")
-	fmt.Println("  --timeout          client timout in seconds							default 20")
-	fmt.Println("  --workers          number of concurrent export workers to create				default 8")
+	fmt.Println("  --timeout          client timout in seconds							default `20`")
+	fmt.Println("  --workers          number of concurrent export workers to create				default `8`")
 	fmt.Println("  --validate         validate exported finding aids against ead2002 schema			default `false`")
-	fmt.Println("  --debug")
-	fmt.Println("  --version          print the version and version of client version")
-	fmt.Println("  --help             print this help screen")
+	fmt.Println("  --debug	     print debug messages							default `false`")
+	fmt.Println("  --version          print the version and version of client version\n")
 }
 
 func main() {
@@ -84,7 +83,7 @@ func main() {
 
 	//check for the version flag `--version`
 	if version == true {
-		fmt.Sprintf("aspace-export %s, using go-aspace %s\n", appVersion, aspace.LibraryVersion)
+		fmt.Printf("aspace-export %s, using go-aspace %s\n", appVersion, aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
@@ -93,15 +92,16 @@ func main() {
 	formattedTime = startTime.Format("20060102-050403")
 
 	//starting the application
-	export.PrintAndLog(fmt.Sprintf("aspace-export %s", appVersion), export.INFO)
+	export.PrintOnly(fmt.Sprintf("aspace-export %s", appVersion), export.INFO)
 
 	//create logger
-	err := export.CreateLogger(formattedTime, debug)
+	err := export.CreateLogger(debug)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.ERROR)
 		printHelp()
 		os.Exit(1)
 	}
+	export.LogOnly(fmt.Sprintf("aspace-export %s", appVersion), export.INFO)
 
 	//check critical flags
 	err = export.CheckFlags(config, environment, format, resource, repository)
@@ -109,6 +109,12 @@ func main() {
 		export.PrintAndLog(err.Error(), export.FATAL)
 		printHelp()
 		os.Exit(2)
+	}
+
+	//check that export location exists
+	err = export.CheckPath(workDir)
+	if err != nil {
+
 	}
 
 	//get a go-aspace api client
@@ -139,7 +145,7 @@ func main() {
 	export.PrintAndLog(fmt.Sprintf("%d resources returned from ArchivesSpace", len(resourceInfo)), export.INFO)
 
 	//create work directory
-	workDir = fmt.Sprintf("aspace-exports-%s", formattedTime)
+	workDir = filepath.Join(workDir, fmt.Sprintf("aspace-exports-%s", formattedTime))
 	err = export.CreateWorkDirectory(workDir)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
@@ -161,7 +167,7 @@ func main() {
 		os.Exit(7)
 	}
 
-	//create Exportoptions struct
+	//create ExportOptions struct
 	xportOptions := export.ExportOptions{
 		WorkDir:              workDir,
 		Format:               xportFormat,
@@ -187,7 +193,7 @@ func main() {
 	}
 
 	//exit
-	export.PrintOnly("aspace-export process complete, exiting\n", export.INFO)
+	export.PrintAndLog("aspace-export process complete, exiting\n", export.INFO)
 	err = export.CloseLogger()
 	if err != nil {
 		panic(err)

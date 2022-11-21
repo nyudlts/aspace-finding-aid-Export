@@ -295,7 +295,7 @@ func CreateReport() error {
 
 	executionTime = time.Since(startTime)
 
-	reportFile = filepath.Join("aspace-export-" + formattedTime + "-report.txt")
+	reportFile = filepath.Join("aspace-export-report.txt")
 	report, err := os.Create(reportFile)
 	if err != nil {
 		return err

@@ -39,9 +39,10 @@ func getLogLevelString(level LogLevel) string {
 	}
 }
 
-func CreateLogger(formattedTime string, dbug bool) error {
+func CreateLogger(dbug bool) error {
+
 	//create a log file
-	logfile = logfile + "-" + formattedTime + ".log"
+	logfile = logfile + ".log"
 
 	var err error
 	logger, err = os.Create(logfile)

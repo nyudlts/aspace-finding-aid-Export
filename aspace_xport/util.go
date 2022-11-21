@@ -52,6 +52,16 @@ func CheckFlags(config string, environment string, format string, resource int, 
 	return nil
 }
 
+func CheckPath(path string) error {
+	fi, err := os.Stat(path)
+	if err == nil {
+		if !fi.IsDir() {
+			return fmt.Errorf("path %s is not a directory", path)
+		}
+	}
+	return nil
+}
+
 func GetRepositoryMap(repository int, environment string) (map[string]int, error) {
 	repositories := make(map[string]int)
 
