@@ -156,14 +156,14 @@ func main() {
 
 	//export Resources
 	fmt.Printf("\nProcessing %d resources\n", len(resourceInfo))
-	err = export.ExportResources(workDir, startTime, formattedTime, unpublishedResources)
+	err = export.ExportResources(workDir, startTime, formattedTime, format, unpublishedNotes, unpublishedResources, validate, resourceInfo, workers, reformat)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(7)
 	}
 
 	//clean up directories
-	err = export.Cleanup(workDir, logfile)
+	err = export.Cleanup()
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.WARNING)
 	}

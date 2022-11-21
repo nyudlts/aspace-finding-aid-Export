@@ -54,7 +54,7 @@ var (
 )
 
 func ExportResources(workPathDir string, startTime time.Time,
-	fTime string, unpublished bool, xportFormat string,
+	fTime string, xportFormat string,
 	unpubNotes bool, unpubResources, valid bool, resInfo []ResourceInfo, workers int, reform bool) error {
 	formattedTime = fTime
 	workDir = workPathDir
