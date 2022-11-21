@@ -5,7 +5,6 @@ import (
 	"fmt"
 	export "github.com/nyudlts/aspace-export/aspace_xport"
 	"github.com/nyudlts/go-aspace"
-	"log"
 	"os"
 	"time"
 )
@@ -13,8 +12,6 @@ import (
 const appVersion = "v1.0.0b"
 
 var (
-	logfile              = "aspace-export"
-	reportFile           string
 	client               *aspace.ASClient
 	workers              int
 	config               string
@@ -23,7 +20,6 @@ var (
 	resource             int
 	timeout              int
 	workDir              string
-	repositoryMap        map[string]int
 	resourceInfo         []export.ResourceInfo
 	validate             bool
 	help                 bool
@@ -33,7 +29,6 @@ var (
 	unpublishedNotes     bool
 	unpublishedResources bool
 	startTime            time.Time
-	executionTime        time.Duration
 	debug                bool
 	formattedTime        string
 )
@@ -78,6 +73,9 @@ func printHelp() {
 
 func main() {
 
+	//parse the flags
+	flag.Parse()
+
 	//check for the help message flag `--help`
 	if help == true {
 		printHelp()
@@ -90,31 +88,20 @@ func main() {
 		os.Exit(0)
 	}
 
+	//create timestamp for files
 	startTime = time.Now()
 	formattedTime = startTime.Format("20060102-050403")
-	//parse the flags
-	flag.Parse()
 
-	//set debug bool
-	export.SetDebug(debug)
-
-	//starting the application
-	fmt.Printf("\n-- aspace-export %s --\n\n", appVersion)
-
-	//create a log file
-
-	logfile = logfile + "-" + formattedTime + ".log"
-
-	f, err := os.Create(logfile)
+	//create logger
+	err := export.CreateLog(formattedTime, debug)
 	if err != nil {
-		export.PrintAndLog(err.Error(), export.FATAL)
+		export.PrintAndLog(err.Error(), export.ERROR)
 		printHelp()
 		os.Exit(1)
 	}
 
-	defer f.Close()
-	log.SetOutput(f)
-	export.PrintAndLog(fmt.Sprintf("logging to %s", logfile), export.INFO)
+	//starting the application
+	export.PrintOnly(fmt.Sprintf("\n-- aspace-export %s --\n\n", appVersion), export.INFO)
 
 	//check critical flags
 	err = export.CheckFlags(config, environment, format, resource, repository)
@@ -169,14 +156,14 @@ func main() {
 
 	//export Resources
 	fmt.Printf("\nProcessing %d resources\n", len(resourceInfo))
-	err = export.ExportResources(workDir)
+	err = export.ExportResources(workDir, startTime, formattedTime, unpublishedResources)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.FATAL)
 		os.Exit(7)
 	}
 
 	//clean up directories
-	err = export.Cleanup(workDir, logfile, reportFile)
+	err = export.Cleanup(workDir, logfile)
 	if err != nil {
 		export.PrintAndLog(err.Error(), export.WARNING)
 	}

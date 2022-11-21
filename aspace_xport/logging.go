@@ -3,6 +3,7 @@ package aspace_xport
 import (
 	"fmt"
 	"log"
+	"os"
 )
 
 type LogLevel int
@@ -15,11 +16,10 @@ const (
 	FATAL
 )
 
-var debug = false
-
-func SetDebug(dbug bool) {
-	debug = dbug
-}
+var (
+	debug   = false
+	logfile = "aspace-export"
+)
 
 func getLogLevelString(level LogLevel) string {
 	switch level {
@@ -36,6 +36,22 @@ func getLogLevelString(level LogLevel) string {
 	default:
 		panic(fmt.Errorf("log level %v is not supported", level))
 	}
+}
+
+func CreateLog(formattedTime string, dbug bool) error {
+	//create a log file
+	logfile = logfile + "-" + formattedTime + ".log"
+
+	f, err := os.Create(logfile)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+	log.SetOutput(f)
+	PrintAndLog(fmt.Sprintf("logging to %s", logfile), INFO)
+	debug = dbug
+	return nil
 }
 
 // logging and printing functions

@@ -175,7 +175,7 @@ func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, u
 	return nil
 }
 
-func Cleanup(workDir string, logfile string, reportfile string) error {
+func Cleanup(workDir string, logfile string) error {
 	//remove any empty directories
 	err := filepath.Walk(workDir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
