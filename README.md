@@ -1,10 +1,10 @@
 aspace-export, v1.0.0b
 =============
-Command-line utility for bulk export, validation and reformatting of EAD finding aids and MARC recordsfrom Archivespace.
+Command-line utility for bulk export, validation and reformatting of EAD finding aids and MARC records from Archivespace.
 
 Install From Binary
 -------------------
-1. Download the latest binary for Mac or linux https://github.com/nyudlts/aspace-export/releases/tag/v0.5.1b
+1. Download the latest binary for Mac or linux https://github.com/nyudlts/aspace-export/releases/tag/v1.0.1b
 3. Enter your ArchivesSpace credentials into the go-aspace.yml file included in the zip.
 
 Install With Go
@@ -13,53 +13,70 @@ $ go install github.com/nyudlts/aspace-export
 
 Build From Source
 -----------------
-Pre-requisite: libxml2<br>
-$ make build 
+Pre-requisite: libxml2 and libxml2 development headers<br>
+$ make build<br>
+$ sudo make install //installs aspace-export to /usr/local/bin
 
+Package Distribution
+-----------------
+Pre-requisite: libxml2<br>
+$ make package VERSION="release version" OS="osx,linux"  //this will build the app, zip the app, the sample go-aspace.yml file and the readme into a zip located in the /bin directory<br>
+example: $ make package VERSION="v1.0.0b" OS="linux" //this will create /bin/linux/aspace-export-linux-v1.0.0b.zip
 
 Run
 ---
 $ aspace-export --config /path/to/go-aspace.yml [options] 
-<br><br>**notes:** 
-
-* The underlying xml lib will output voluminous, and not always helpful, info about xml errors to stderr, `2> /dev/null` ignores the output but you can redirect to a file by replacing /dev/null
-* The program will create a directory hierarchy at the location set in the --export-location option. There will be a subdirectory created for each repository that was exported, with the name of the repositories slug.
-within each repository directory there will be an `exports` directory containing all exported finding aids. 
+<br><br>**notes:**
+* The underlying C xml lib, libxml2, will output voluminous, and not always helpful, info about xml errors to stderr, `2> /dev/null` ignores the output, you can redirect to a file by replacing /dev/null if you want to analyze the libxml2 output 
+* The program will create a directory hierarchy at the location set in the --export-location option named `aspace-export-[timestamp]. A subdirectory will be created for each repository that was exported, with the name of the repository's slug.
+* Within each repository directory there will be an `exports` directory containing all exported finding aids and a `failures` directory for any file that fails to export from ArchivesSpace
 * If the `validate` option is set when the running the application any finding aids that fail validation will be written to a subdirectory named `invalid`.
-* A log file will be created named `aspace-export-[yyyymmdd].log` which will be moved to the root of output directory at the end of the process.
-* A Report with statistics will be created named `aspace-export-[yyyymmdd]-report.txt` which will be moved to the root of output directory at the end of the process.
+* A log file will be created named `aspace-export.log` which will be created in the root of output directory as defined in the --export-location option.
+* A Report with statistics will be created named `aspace-export-report.txt` will be created in the root of output directory as defined in the --export-location option.
 * Validation of MARC21 records is currently failing, do not use the --marc flag in conjunction with the --validate flage
 
 
 **example output structure**<br>
-aspace-exports<br>
+/path/top/eexport-location/aspace-exports-[timestamp]<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aspace-exports.log<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aspace-exports-report.txt<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/tamwag<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/exports<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tam_001.xml<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tam_002.xml<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/invalid<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tam_003.xml<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/failures<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tam_004.xml<br>
 
 Command-Line Arguments
 ----------------------
 --config, path/to/go-aspace.yml configuration file, required<br>
---environment, environment key in config file of the instance to export from, default: `dev`<br>
---export-location, path/to/the location to export resources, default: `./aspace-exports`<br>
+--environment, environment key in config file of the instance to export from, required<br>
+--export-location, path/to/the location to export resources, default: `.`<br>
 --format, format of export: ead or marc, default: `ead`<br>
---include-unpublished-resources, include unpublished resources in exports, default: false<br>
---include-unpublished-notes, include unpublished notes in exports, default: false<br>
+--include-unpublished-resources, include unpublished resources in exports, default: `false`<br>
+--include-unpublished-notes, include unpublished notes in exports, default: `false`<br>
 --reformat, tab-reformat ead files (marcxml are tab-formatted by ArchivesSpace), default: `false`<br>
---repository, ID of the repository to be exported, `0` will export all repositories, default: 0<br>
---resource, ID of the resource to be exported, `0` will export all resources, default: 0<br>
---timeout, client timout in seconds to, default: 20<br>
+--repository, ID of the repository to be exported, `0` will export all repositories, default: `0`<br>
+--resource, ID of the resource to be exported, `0` will export all resources, default: `0`<br>
+--timeout, client timout in seconds to, default: `20`<br>
 --validate, validate exported finding aids against schema, default: `false`<br>
 --version, print the application and go-aspace client version
---workers, number of concurrent export workers to create, default: 8<br>
+--workers, number of concurrent export workers to create, default: `8`<br>
 --help, print this help screen<br>
 
-Package Distrobution
------------------
-Pre-requisite: libxml2<br>
-$ make package VERSION="release version" OS="osx,linux"
+Exit Error Codes
+----------------
+0. no errors
+1. could not create a log file to write to
+2. mandatory options not set
+3. the location set at export-location set does not exist or is not a directory
+4. go-aspace library could not create an aspace-client 
+5. could not get a list of repositories from ArchivesSpace
+6. could not get a list of resources from ArchivesSpace
+7. could not create a aspace-export directory at    the location set at --export-location 
+8. could not create subdirectories in the aspace-export 
+
+
 
