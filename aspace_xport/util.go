@@ -157,28 +157,28 @@ func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, u
 		failureDir := filepath.Join(repositoryDir, "invalid")
 		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
 
-		err := os.Mkdir(repositoryDir, 0644)
+		err := os.Mkdir(repositoryDir, 0755)
 		if err != nil {
 			return err
 		}
 		PrintAndLog(fmt.Sprintf("created repository directory %s", repositoryDir), INFO)
 
 		//create the repository export directory
-		err = os.Mkdir(exportDir, 0644)
+		err = os.Mkdir(exportDir, 0755)
 		if err != nil {
 			return err
 		}
 		PrintAndLog(fmt.Sprintf("created export directory %s", exportDir), INFO)
 
 		//create the repository failure directory
-		err = os.Mkdir(failureDir, 0644)
+		err = os.Mkdir(failureDir, 0755)
 		if err != nil {
 			return err
 		}
 		PrintAndLog(fmt.Sprintf("created failure directory %s", failureDir), INFO)
 
 		if unpublishedResources == true {
-			err = os.Mkdir(unpublishedDir, 0644)
+			err = os.Mkdir(unpublishedDir, 0755)
 			if err != nil {
 				return err
 			}

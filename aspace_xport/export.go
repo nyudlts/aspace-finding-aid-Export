@@ -71,7 +71,6 @@ func ExportResources(options ExportOptions, stTime time.Time, fTime string, resI
 
 	for range resourceChunks {
 		chunk := <-resultChannel
-		PrintAndLog(fmt.Sprintln("adding", len(chunk), "results to results list"), INFO)
 		results = append(results, chunk...)
 	}
 
@@ -108,7 +107,7 @@ func exportChunk(resourceInfoChunk []ResourceInfo, resultChannel chan []ExportRe
 	for i, rInfo := range resourceInfoChunk {
 
 		if i > 1 && (i-1)%50 == 0 {
-			PrintOnly(fmt.Sprintf("Worker %d has completed %d exports\n", workerID, i-1), INFO)
+			PrintOnly(fmt.Sprintf("worker %d has completed %d exports", workerID, i-1), INFO)
 		}
 		//get the resource object
 		res, err := client.GetResource(rInfo.RepoID, rInfo.ResourceID)
