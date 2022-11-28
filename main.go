@@ -16,6 +16,7 @@ var (
 	config               string
 	debug                bool
 	environment          string
+	exportLoc            string
 	formattedTime        string
 	format               string
 	help                 bool
@@ -41,7 +42,7 @@ func init() {
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
 	flag.IntVar(&workers, "workers", 8, "number of concurrent workers")
 	flag.BoolVar(&validate, "validate", false, "perform ead2 schema validation")
-	flag.StringVar(&workDir, "export-location", ".", "location to export finding aids")
+	flag.StringVar(&exportLoc, "export-location", ".", "location to export finding aids")
 	flag.BoolVar(&help, "help", false, "display the help message")
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
 	flag.BoolVar(&reformat, "reformat", false, "tab reformat the output file")
@@ -115,7 +116,15 @@ func main() {
 		printHelp()
 		os.Exit(2)
 	}
+
 	export.PrintAndLog("all mandatory options set", export.INFO)
+
+	//get the absolute path of the export location
+	workDir, err = filepath.Abs(workDir)
+	if err != nil {
+		export.PrintAndLog(err.Error(), export.ERROR)
+		os.Exit(3)
+	}
 
 	//check that export location exists
 	err = export.CheckPath(workDir)
