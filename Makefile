@@ -14,3 +14,8 @@ build:
 clean:
 	rm aspace-export
 	rm -r aspace-exports*
+
+install:
+	go mod tidy
+	go build -o aspace-export
+	sudo cp aspace-export /usr/local/bin/

@@ -84,7 +84,7 @@ func main() {
 	//check for the version flag `--version`
 	if version == true {
 		fmt.Printf("  aspace-export %s <https://github.com/nyudlts/aspace-export>\n", appVersion)
-		fmt.Printf("  go-aspace %s <https://github.com/nyudlts/aspace-export>\n", aspace.LibraryVersion)
+		fmt.Printf("  go-aspace %s <https://github.com/nyudlts/go-aspace>\n", aspace.LibraryVersion)
 		os.Exit(0)
 	}
 
