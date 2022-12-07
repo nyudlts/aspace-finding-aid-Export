@@ -302,7 +302,7 @@ func CreateReport() error {
 
 	defer report.Close()
 	writer := bufio.NewWriter(report)
-
+	fmt.Println()
 	msg := fmt.Sprintf("ASPACE-EXPORT REPORT\n====================\n")
 	msg = msg + fmt.Sprintf("Execution Time: %v", executionTime)
 	msg = msg + fmt.Sprintf("\n%d Resources proccessed:\n", len(results))

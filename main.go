@@ -57,7 +57,7 @@ func printHelp() {
 	fmt.Println("options:")
 	fmt.Println("  --config           path/to/the go-aspace configuration file					mandatory")
 	fmt.Println("  --environment      environment key in config file of the instance to run export against   	mandatory")
-	fmt.Println("  --format           the export format either `ead` or `marc					mandatory")
+	fmt.Println("  --format           the export format either `ead` or `marc`					mandatory")
 	fmt.Println("  --export-location  path/to/the location to export finding aids                            	default `.`")
 	fmt.Println("  --include-unpublished-notes		include unpublished notes in exports			default `false`")
 	fmt.Println("  --include-unpublished-resources	include unpublished resources in exports		default `false`")
@@ -86,6 +86,7 @@ func main() {
 	if version == true {
 		fmt.Printf("  aspace-export %s <https://github.com/nyudlts/aspace-export>\n", appVersion)
 		fmt.Printf("  go-aspace %s <https://github.com/nyudlts/go-aspace>\n", aspace.LibraryVersion)
+		fmt.Println()
 		os.Exit(0)
 	}
 

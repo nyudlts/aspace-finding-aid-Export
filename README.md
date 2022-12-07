@@ -19,13 +19,12 @@ $ sudo make install //installs aspace-export to /usr/local/bin
 
 Package Distribution
 -----------------
-Pre-requisite: libxml2<br>
-$ make package VERSION="release version" OS="osx,linux"  //this will build the app, zip the app, the sample go-aspace.yml file and the readme into a zip located in the /bin directory<br>
-example: $ make package VERSION="v1.0.0b" OS="linux" //this will create /bin/linux/aspace-export-linux-v1.0.0b.zip
+$ make package VERSION="release version" OS="osx,linux", this will build the app, zip the app, the sample go-aspace.yml file and the readme into a zip located in the /bin directory<br>
+example: $ make package VERSION="v1.0.0b" OS="linux", this will create /bin/linux/aspace-export-linux-v1.0.0b.zip
 
 Run
 ---
-$ aspace-export --config /path/to/go-aspace.yml [options] 
+$ aspace-export --config /path/to/go-aspace.yml --environment your-environment-key --format ead-or-marc [options] 
 <br><br>**notes:**
 * The underlying C xml lib, libxml2, will output voluminous, and not always helpful, info about xml errors to stderr, `2> /dev/null` ignores the output, you can redirect to a file by replacing /dev/null if you want to analyze the libxml2 output 
 * The program will create a directory hierarchy at the location set in the --export-location option named `aspace-export-[timestamp]. A subdirectory will be created for each repository that was exported, with the name of the repository's slug.
