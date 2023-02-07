@@ -1,6 +1,6 @@
-module github.com/dmnyu/aspace-fa-export
+module github.com/nyudlts/aspace-export
 
-go 1.17
+go 1.19
 
 require github.com/nyudlts/go-aspace v0.3.8-0.20220214182818-e92697d431b8
 
