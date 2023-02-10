@@ -137,10 +137,10 @@ func main() {
 		}
 		os.Exit(3)
 	}
-	export.PrintAndLog(fmt.Sprintf("%s exists and is a directory", workDir), export.INFO)
+	abs, _ := filepath.Abs(workDir)
+	export.PrintAndLog(fmt.Sprintf("%s exists and is a directory", abs), export.INFO)
 
 	//get a go-aspace api client
-	export.PrintOnly("Creating go-aspace client", export.INFO)
 	err = export.CreateAspaceClient(config, environment, timeout)
 	if err != nil {
 		export.PrintAndLog(fmt.Sprintf("failed to create a go-aspace client %s", err.Error()), export.FATAL)
