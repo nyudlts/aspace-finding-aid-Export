@@ -148,7 +148,7 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 	}
 
 	//create the output filename
-	marcFilename := strings.ToLower(MergeIDs(res) + "_" + formattedTime + ".xml")
+	marcFilename := strings.ToLower(fmt.Sprintf("%s_%s.xml", res.EADID, formattedTime))
 
 	//set the location to write the marc record
 	var marcPath string
@@ -197,7 +197,7 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 	}
 
 	//create the output filename
-	eadFilename := strings.ToLower(MergeIDs(res) + ".xml")
+	eadFilename := fmt.Sprintf("%s.xml", res.EADID)
 	outputFile := filepath.Join(exportOptions.WorkDir, info.RepoSlug, "exports", eadFilename)
 
 	//validate the output
