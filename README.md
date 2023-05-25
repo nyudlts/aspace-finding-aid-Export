@@ -61,7 +61,7 @@ Command-Line Arguments
 --resource, ID of the resource to be exported, `0` will export all resources, default: `0`<br>
 --timeout, client timout in seconds to, default: `20`<br>
 --validate, validate exported finding aids against schema, default: `false`<br>
---version, print the application and go-aspace client version
+--version, print the application and go-aspace client version<br>
 --workers, number of concurrent export workers to create, default: `8`<br>
 --help, print this help screen<br>
 

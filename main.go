@@ -14,6 +14,7 @@ const appVersion = "v1.0.0b"
 
 var (
 	config               string
+	connectTest          bool
 	debug                bool
 	environment          string
 	exportLoc            string
@@ -50,6 +51,7 @@ func init() {
 	flag.BoolVar(&unpublishedNotes, "include-unpublished-notes", false, "include unpublished notes")
 	flag.BoolVar(&unpublishedResources, "include-unpublished-resources", false, "include unpublished resources")
 	flag.BoolVar(&debug, "debug", false, "")
+	flag.BoolVar(&connectTest, "connection-test", false, "")
 }
 
 func printHelp() {
@@ -87,6 +89,16 @@ func main() {
 		fmt.Printf("  aspace-export %s <https://github.com/nyudlts/aspace-export>\n", appVersion)
 		fmt.Printf("  go-aspace %s <https://github.com/nyudlts/go-aspace>\n", aspace.LibraryVersion)
 		fmt.Println()
+		os.Exit(0)
+	}
+
+	if connectTest {
+		fmt.Println("Connection Test")
+		client, err := aspace.NewClient(config, environment, 20)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("got client", client)
 		os.Exit(0)
 	}
 
