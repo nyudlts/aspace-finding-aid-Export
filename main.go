@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	export "github.com/nyudlts/aspace-export/aspace_xport"
-	"github.com/nyudlts/go-aspace"
 	"os"
 	"path/filepath"
 	"time"
+
+	export "github.com/nyudlts/aspace-export/aspace_xport"
+	"github.com/nyudlts/go-aspace"
 )
 
-const appVersion = "v1.0.0b"
+const appVersion = "v1.1.0"
 
 var (
 	config               string
@@ -28,7 +29,6 @@ var (
 	timeout              int
 	unpublishedNotes     bool
 	unpublishedResources bool
-	validate             bool
 	version              bool
 	workDir              string
 	workers              int
@@ -41,7 +41,6 @@ func init() {
 	flag.IntVar(&resource, "resource", 0, "ID of a single resource to be exported")
 	flag.IntVar(&timeout, "timeout", 20, "client timeout")
 	flag.IntVar(&workers, "workers", 8, "number of concurrent workers")
-	flag.BoolVar(&validate, "validate", false, "perform ead2 schema validation")
 	flag.StringVar(&exportLoc, "export-location", ".", "location to export finding aids")
 	flag.BoolVar(&help, "help", false, "display the help message")
 	flag.BoolVar(&version, "version", false, "display the version of the tool and go-aspace library")
@@ -218,7 +217,6 @@ func main() {
 		Format:               xportFormat,
 		UnpublishedNotes:     unpublishedNotes,
 		UnpublishedResources: unpublishedResources,
-		Validate:             validate,
 		Workers:              workers,
 		Reformat:             reformat,
 	}

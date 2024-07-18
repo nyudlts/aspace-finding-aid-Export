@@ -3,12 +3,13 @@ package aspace_xport
 import (
 	"bufio"
 	"fmt"
-	"github.com/nyudlts/go-aspace"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/nyudlts/go-aspace"
 )
 
 var (
@@ -27,7 +28,6 @@ type ExportOptions struct {
 	Format               ExportFormat
 	UnpublishedNotes     bool
 	UnpublishedResources bool
-	Validate             bool
 	Workers              int
 	Reformat             bool
 }
@@ -161,15 +161,6 @@ func exportMarc(info ResourceInfo, res aspace.Resource, workerID int) ExportResu
 	//validate the output
 	warning := false
 	var warningType = ""
-	if exportOptions.Validate == true {
-		err = aspace.ValidateMARC(marcBytes)
-		if err != nil {
-			warning = true
-			warningType = "failed MARC21 validation, writing to invalid directory"
-			LogOnly(fmt.Sprintf("worker %d resource %s - %s %s %s", workerID, res.URI, res.EADID, warningType, err.Error()), WARNING)
-			marcPath = filepath.Join(exportOptions.WorkDir, info.RepoSlug, "invalid", marcFilename)
-		}
-	}
 
 	//write the marc file
 	err = os.WriteFile(marcPath, marcBytes, 0777)
@@ -203,15 +194,6 @@ func exportEAD(info ResourceInfo, res aspace.Resource, workerID int) ExportResul
 	//validate the output
 	warning := false
 	var warningType = ""
-	if exportOptions.Validate == true {
-		err = aspace.ValidateEAD(eadBytes)
-		if err != nil {
-			warning = true
-			warningType = "failed EAD2002 validation, writing to invalid directory"
-			LogOnly(fmt.Sprintf("worker %d - resource %s - %s %s", workerID, res.URI, res.EADID, warningType), WARNING)
-			outputFile = filepath.Join(exportOptions.WorkDir, info.RepoSlug, "invalid", eadFilename)
-		}
-	}
 
 	//create the output file
 	err = os.WriteFile(outputFile, eadBytes, 0777)
