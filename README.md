@@ -32,8 +32,6 @@ $ aspace-export --config /path/to/go-aspace.yml --environment your-environment-k
 * If the `validate` option is set when the running the application any finding aids that fail validation will be written to a subdirectory named `invalid`.
 * A log file will be created named `aspace-export.log` which will be created in the root of output directory as defined in the --export-location option.
 * A Report with statistics will be created named `aspace-export-report.txt` will be created in the root of output directory as defined in the --export-location option.
-* Validation of MARC21 records is currently failing, do not use the --marc flag in conjunction with the --validate flage
-
 
 **example output structure**<br>
 /path/top/eexport-location/aspace-exports-[timestamp]<br>
@@ -59,8 +57,7 @@ Command-Line Arguments
 --reformat, tab-reformat ead files (marcxml are tab-formatted by ArchivesSpace), default: `false`<br>
 --repository, ID of the repository to be exported, `0` will export all repositories, default: `0`<br>
 --resource, ID of the resource to be exported, `0` will export all resources, default: `0`<br>
---timeout, client timout in seconds to, default: `20`<br>
---validate, validate exported finding aids against schema, default: `false`<br>
+--timeout, client timeout in seconds to, default: `20`<br>
 --version, print the application and go-aspace client version<br>
 --workers, number of concurrent export workers to create, default: `8`<br>
 --help, print this help screen<br>

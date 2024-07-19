@@ -3,10 +3,11 @@ package aspace_xport
 import (
 	"errors"
 	"fmt"
-	"github.com/nyudlts/go-aspace"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/nyudlts/go-aspace"
 )
 
 type ResourceInfo struct {
@@ -154,7 +155,6 @@ func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, u
 
 		repositoryDir := filepath.Join(workDirPath, slug)
 		exportDir := filepath.Join(repositoryDir, "exports")
-		failureDir := filepath.Join(repositoryDir, "invalid")
 		unpublishedDir := filepath.Join(repositoryDir, "unpublished")
 
 		err := os.Mkdir(repositoryDir, 0755)
@@ -169,13 +169,6 @@ func CreateExportDirectories(workDirPath string, repositoryMap map[string]int, u
 			return err
 		}
 		PrintAndLog(fmt.Sprintf("created export directory %s", exportDir), INFO)
-
-		//create the repository failure directory
-		err = os.Mkdir(failureDir, 0755)
-		if err != nil {
-			return err
-		}
-		PrintAndLog(fmt.Sprintf("created failure directory %s", failureDir), INFO)
 
 		if unpublishedResources == true {
 			err = os.Mkdir(unpublishedDir, 0755)
