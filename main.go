@@ -11,7 +11,7 @@ import (
 	"github.com/nyudlts/go-aspace"
 )
 
-const appVersion = "v1.1.0"
+const appVersion = "v1.1.1"
 
 var (
 	config               string
